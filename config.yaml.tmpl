@@ -1,0 +1,20 @@
+knx:
+  interfaceIp: "1.2.3.4"
+  interfacePort: 3671
+  knxDevices:
+    - knxAddress: "1/2/3"
+      type: "sensor"
+      name: "kitchen"
+      room: "kitchen"
+      valueType: "temp"
+shelly:
+  shellyDevices:
+    - knxAddress: "10/0/1"
+      type: "relais"
+      name: "kitchen"
+      room: "kitchen"
+      ip: "4.5.6.7"
+      index: 0
+promExporter:
+  port: 8080
+  path: "/metrics"
