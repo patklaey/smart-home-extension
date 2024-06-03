@@ -67,7 +67,7 @@ type shellyRelaisActionResponse struct {
 	Source         string  `json:"source"`
 }
 
-func (actor *ShellyDevice) GetStatus() *goShelly.ShellyGetStatusResponse {
+func (actor *ShellyDevice) GetStatus() (*goShelly.ShellyGetStatusResponse, error) {
 	var response goShelly.ShellyGetStatusResponse
 	requestUrl := fmt.Sprintf("http://%s/rpc/Shelly.GetStatus", actor.Ip)
 
@@ -76,10 +76,10 @@ func (actor *ShellyDevice) GetStatus() *goShelly.ShellyGetStatusResponse {
 		Fetch(context.Background())
 
 	if err != nil {
-		fmt.Printf("Failed to get status for shelly device %s (%s): %s", actor.Name, actor.Ip, err)
-		return nil
+		util.Logger.Printf("Failed to get status for shelly device %s (%s): %s", actor.Name, actor.Ip, err)
+		return nil, err
 	}
-	return &response
+	return &response, nil
 }
 
 func (actor *ShellyDevice) SetRelaisValue(value bool) (int, error) {

@@ -6,14 +6,15 @@ import (
 )
 
 type PromGauges struct {
-	WindspeedGauge   prometheus.Gauge
-	LuxGauge         prometheus.Gauge
-	TempGauge        *prometheus.GaugeVec
-	RainIndicator    prometheus.Gauge
-	PowerConsumption *prometheus.GaugeVec
-	Voltage          *prometheus.GaugeVec
-	Current          *prometheus.GaugeVec
-	Test             prometheus.Gauge
+	WindspeedGauge        prometheus.Gauge
+	LuxGauge              prometheus.Gauge
+	TempGauge             *prometheus.GaugeVec
+	RainIndicator         prometheus.Gauge
+	PowerConsumptionGauge *prometheus.GaugeVec
+	VoltageGauge          *prometheus.GaugeVec
+	CurrentGauge          *prometheus.GaugeVec
+	ShellyTempGauge       *prometheus.GaugeVec
+	WifiSignalGauge       *prometheus.GaugeVec
 }
 
 func InitPrometheus() PromGauges {
@@ -39,7 +40,7 @@ func InitPrometheus() PromGauges {
 		Name: "knx_weather_rain_indicator",
 		Help: "The indicator for current rain value",
 	})
-	gauges.PowerConsumption = promauto.NewGaugeVec(
+	gauges.PowerConsumptionGauge = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Subsystem: "shelly",
 			Name:      "plug_power_consumption_w",
@@ -47,7 +48,7 @@ func InitPrometheus() PromGauges {
 		},
 		[]string{"knxAddress", "roomName", "sensorName", "ipAddress"},
 	)
-	gauges.Voltage = promauto.NewGaugeVec(
+	gauges.VoltageGauge = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Subsystem: "shelly",
 			Name:      "plug_voltage_v",
@@ -55,7 +56,7 @@ func InitPrometheus() PromGauges {
 		},
 		[]string{"knxAddress", "roomName", "sensorName", "ipAddress"},
 	)
-	gauges.Current = promauto.NewGaugeVec(
+	gauges.CurrentGauge = promauto.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Subsystem: "shelly",
 			Name:      "plug_current_a",
@@ -63,5 +64,22 @@ func InitPrometheus() PromGauges {
 		},
 		[]string{"knxAddress", "roomName", "sensorName", "ipAddress"},
 	)
+	gauges.ShellyTempGauge = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: "shelly",
+			Name:      "temperature_c",
+			Help:      "The temperature of the shelly device in degrees C",
+		},
+		[]string{"knxAddress", "roomName", "sensorName", "ipAddress"},
+	)
+	gauges.WifiSignalGauge = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: "shelly",
+			Name:      "wifi_signal",
+			Help:      "The signal strength of the WIFI for the shelly device",
+		},
+		[]string{"knxAddress", "roomName", "sensorName", "ipAddress"},
+	)
+
 	return gauges
 }

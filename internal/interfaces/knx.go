@@ -88,7 +88,7 @@ func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromGauges) {
 			err := indicator.Unpack(msg.Data)
 			if err == nil {
 				util.Logger.Printf("Indicator: %+v: %v", msg, indicator)
-				if knxDevice.Name == "rain" {
+				if knxDevice.Name == "weatherstation" {
 					// It's raining
 					if indicator == true {
 						gauges.RainIndicator.Set(1)

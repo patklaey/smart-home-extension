@@ -11,6 +11,7 @@ import (
 	"home_automation/internal/utils"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/vapourismo/knx-go/knx/util"
 )
 
 func listenToKNX(knxClient interfaces.KnxClient, gauges utils.PromGauges) {
@@ -27,10 +28,17 @@ func fetchShellyData(gauges utils.PromGauges) {
 		// Periodically fetch data for all shellies
 		for range time.Tick(time.Second * 5) {
 			for knxAddr, shellyDevice := range interfaces.KnxShellyMap {
-				switchStatus := shellyDevice.GetStatus().Switches[0]
-				gauges.Current.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Ip, shellyDevice.Name).Set(*switchStatus.Current)
-				gauges.Voltage.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Ip, shellyDevice.Name).Set(*switchStatus.Voltage)
-				gauges.PowerConsumption.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Ip, shellyDevice.Name).Set(*switchStatus.APower)
+				switchStatusResponse, err := shellyDevice.GetStatus()
+				if err != nil {
+					util.Logger.Printf("Error received from GetStatus call: %s. Skipping device %s", err, shellyDevice.Name)
+					continue
+				}
+				switchStatus := switchStatusResponse.Switches[0]
+				gauges.CurrentGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatus.Current)
+				gauges.VoltageGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatus.Voltage)
+				gauges.PowerConsumptionGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatus.APower)
+				gauges.WifiSignalGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatusResponse.Wifi.RRSI)
+				gauges.ShellyTempGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatus.Temperature.C)
 			}
 		}
 	}()
