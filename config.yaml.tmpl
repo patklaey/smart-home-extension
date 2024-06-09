@@ -1,3 +1,8 @@
+weather:
+  windspeed:
+    shutterUpLow: 21
+    shutterUpMed: 27
+    shutterUpHigh: 35
 knx:
   interfaceIp: "1.2.3.4"
   interfacePort: 3671
@@ -7,6 +12,13 @@ knx:
       name: "kitchen"
       room: "kitchen"
       valueType: "temp"
+    - knxAddress: "2/3/4"
+      type: "actor"
+      name: "shutter-terrace-bedroom"
+      room: "terrace"
+      valueType: "shutter"
+      typeConfig:
+        windClass: "medium"
 shelly:
   shellyDevices:
     - knxAddress: "10/0/1"

@@ -10,9 +10,20 @@ import (
 )
 
 type Config struct {
-	Knx          *KnxConfig    `yaml:"knx"`
-	Shelly       *ShellyConfig `yaml:"shelly"`
-	PromExporter *PromExporter `yaml:"promExporter"`
+	Weather      *WeatherConfig `yaml:"weather"`
+	Knx          *KnxConfig     `yaml:"knx"`
+	Shelly       *ShellyConfig  `yaml:"shelly"`
+	PromExporter *PromExporter  `yaml:"promExporter"`
+}
+
+type WeatherConfig struct {
+	Windspeed *WindspeedConfig `yaml:"windspeed"`
+}
+
+type WindspeedConfig struct {
+	ShutteUpLow  float64 `yaml:"shutterUpLow"`
+	ShutteUpMed  float64 `yaml:"shutterUpMed"`
+	ShutteUpHigh float64 `yaml:"shutterUpHigh"`
 }
 
 type KnxConfig struct {
@@ -23,7 +34,12 @@ type KnxConfig struct {
 
 type KnxDeviceConfig struct {
 	DeviceBaseConfig `yaml:",inline"`
-	ValueType        string `yaml:"valueType"`
+	ValueType        string      `yaml:"valueType"`
+	TypeConfig       *TypeConfig `yaml:"typeConfig,omitempty"`
+}
+
+type TypeConfig struct {
+	WindClass string `yaml:"windClass"`
 }
 
 type ShellyConfig struct {
@@ -110,6 +126,23 @@ func (deviceConfig *KnxDeviceConfig) ToKnxDevice() (*models.KnxDevice, error) {
 		device.ValueType = models.Brightness
 	case "indicator":
 		device.ValueType = models.Indicator
+	case "shutter":
+		device.ValueType = models.Shutter
+		var windClass int
+		switch strings.ToLower(deviceConfig.TypeConfig.WindClass) {
+		case "low":
+			windClass = models.WindClass{}.Low()
+		case "medium":
+			windClass = models.WindClass{}.Medium()
+		case "high":
+			windClass = models.WindClass{}.High()
+		default:
+			windClass = models.WindClass{}.Low()
+			fmt.Printf("Warning: wind class %s not defined, falling back to 'low' for shutter %s", deviceConfig.TypeConfig.WindClass, deviceConfig.Name)
+		}
+		device.ShutterDevice = models.ShutterDevice{
+			WindClass: windClass,
+		}
 	default:
 		return nil, fmt.Errorf("unknown KnxDevice valuetype '%s'", deviceConfig.ValueType)
 	}

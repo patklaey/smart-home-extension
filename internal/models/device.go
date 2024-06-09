@@ -40,11 +40,30 @@ const (
 )
 
 type KnxDevice struct {
-	Type       int
-	Name       string
-	Room       string
-	ValueType  int
-	KnxAddress string
+	Type          int
+	Name          string
+	Room          string
+	ValueType     int
+	KnxAddress    string
+	ShutterDevice ShutterDevice
+}
+
+type ShutterDevice struct {
+	WindClass int
+}
+
+type WindClass struct{}
+
+func (WindClass) Low() int {
+	return 0
+}
+
+func (WindClass) Medium() int {
+	return 1
+}
+
+func (WindClass) High() int {
+	return 2
 }
 
 type ShellyDevice struct {
@@ -98,7 +117,7 @@ func (actor *ShellyDevice) SetRelaisValue(value bool) (int, error) {
 	}
 
 	if value != response.IsOn {
-		return -1, fmt.Errorf("Response of the switch %s (%t) does not match requested state (%t)", actor.Name, response.IsOn, value)
+		return -1, fmt.Errorf("response of the switch %s (%t) does not match requested state (%t)", actor.Name, response.IsOn, value)
 
 	}
 	return btoi(response.IsOn), nil

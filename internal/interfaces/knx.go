@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"home_automation/internal/models"
 	"home_automation/internal/utils"
@@ -12,6 +13,16 @@ import (
 	"github.com/vapourismo/knx-go/knx/cemi"
 	"github.com/vapourismo/knx-go/knx/dpt"
 	"github.com/vapourismo/knx-go/knx/util"
+)
+
+var (
+	windShutterUpLow  float64
+	windShutterUpMed  float64
+	windShutterUpHigh float64
+
+	windShutterUpLowActive  = true
+	windShutterUpMedActive  = true
+	windShutterUpHighActive = true
 )
 
 type KnxClient = knx.GroupTunnel
@@ -32,6 +43,11 @@ func InitKnx(config utils.Config) *KnxClient {
 	for knxAddr, theShellyInfo := range KnxShellyMap {
 		knxDevices[knxAddr] = &models.KnxDevice{Type: models.Actor, Name: theShellyInfo.Name, Room: theShellyInfo.Room, ValueType: models.Shelly}
 	}
+
+	// Setup windspeed thresholds
+	windShutterUpHigh = config.Weather.Windspeed.ShutteUpHigh
+	windShutterUpMed = config.Weather.Windspeed.ShutteUpMed
+	windShutterUpLow = config.Weather.Windspeed.ShutteUpLow
 
 	// Setup logger for auxiliary logging. This enables us to see log messages from internal
 	// routines.
@@ -72,6 +88,7 @@ func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromGauges) {
 			err := windspeed.Unpack(msg.Data)
 			if err == nil {
 				util.Logger.Printf("Speed: %+v: %v", msg, windspeed)
+				checkShutterUp(float64(windspeed))
 				gauges.WindspeedGauge.Set(float64(windspeed))
 			} else {
 				util.Logger.Printf("Failed to unpack windspeed for %s: %v", msg.Destination, err)
@@ -120,6 +137,59 @@ func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromGauges) {
 	} else {
 		util.Logger.Printf("Destination %s not in destInfo map", msg.Destination)
 	}
+}
+
+func checkShutterUp(windspeed float64) {
+	switch {
+	case windspeed >= windShutterUpHigh:
+		if windShutterUpHighActive {
+			err := shutterUp(models.WindClass{}.High())
+			if err == nil {
+				windShutterUpHighActive = false
+				util.Logger.Printf("Shutters for high wind retracted")
+				time.AfterFunc(15*time.Minute, func() { windShutterUpHighActive = true })
+			} else {
+				util.Logger.Printf("Some or all shutters could not be retracted (trigger high wind)")
+			}
+		}
+	case windspeed >= windShutterUpMed:
+		if windShutterUpMedActive {
+			err := shutterUp(models.WindClass{}.Medium())
+			if err == nil {
+				windShutterUpMedActive = false
+				util.Logger.Printf("Shutters for medium wind retracted")
+				time.AfterFunc(15*time.Minute, func() { windShutterUpMedActive = true })
+			} else {
+				util.Logger.Printf("Some or all shutters could not be retracted (trigger medium wind)")
+			}
+		}
+	case windspeed >= windShutterUpLow:
+		if windShutterUpLowActive {
+			err := shutterUp(models.WindClass{}.Low())
+			if err == nil {
+				windShutterUpLowActive = false
+				util.Logger.Printf("Shutters for low wind retracted")
+				time.AfterFunc(15*time.Minute, func() { windShutterUpLowActive = true })
+			} else {
+				util.Logger.Printf("Some or all shutters could not be retracted (trigger low wind)")
+			}
+		}
+	}
+}
+
+func shutterUp(windClass int) error {
+	var lastError error
+	lastError = nil
+	for knxAddress, knxDevice := range knxDevices {
+		if knxDevice.Type == models.Actor && knxDevice.ValueType == models.Shutter && knxDevice.ShutterDevice.WindClass <= windClass {
+			err := SendMessageToKnx(knxAddress, dpt.DPT_1001(false).Pack())
+			if err != nil {
+				util.Logger.Printf("Failed to send shutterUp command for shutter %s (%s): %s\n", knxDevice.Name, knxAddress, err)
+				lastError = err
+			}
+		}
+	}
+	return lastError
 }
 
 func SendMessageToKnx(destination string, data []byte) error {

@@ -30,7 +30,7 @@ func fetchShellyData(gauges utils.PromGauges) {
 			for knxAddr, shellyDevice := range interfaces.KnxShellyMap {
 				switchStatusResponse, err := shellyDevice.GetStatus()
 				if err != nil {
-					util.Logger.Printf("Error received from GetStatus call: %s. Skipping device %s", err, shellyDevice.Name)
+					util.Logger.Printf("Failed getting status from shelly, skipping device %s", shellyDevice.Name)
 					continue
 				}
 				switchStatus := switchStatusResponse.Switches[0]
