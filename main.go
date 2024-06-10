@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"home_automation/internal/interfaces"
+	"home_automation/internal/logger"
 	"home_automation/internal/utils"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/vapourismo/knx-go/knx/util"
 )
 
-func listenToKNX(knxClient interfaces.KnxClient, gauges utils.PromGauges) {
+func listenToKNX(knxClient interfaces.KnxClient, gauges utils.PromExporterGauges) {
 	go func() {
 		// Receive messages from the gateway. The inbound channel is closed with the connection.
 		for msg := range knxClient.Inbound() {
@@ -23,14 +23,14 @@ func listenToKNX(knxClient interfaces.KnxClient, gauges utils.PromGauges) {
 	}()
 }
 
-func fetchShellyData(gauges utils.PromGauges) {
+func fetchShellyData(gauges utils.PromExporterGauges) {
 	go func() {
 		// Periodically fetch data for all shellies
 		for range time.Tick(time.Second * 5) {
 			for knxAddr, shellyDevice := range interfaces.KnxShellyMap {
 				switchStatusResponse, err := shellyDevice.GetStatus()
 				if err != nil {
-					util.Logger.Printf("Failed getting status from shelly, skipping device %s", shellyDevice.Name)
+					logger.Warning("Failed getting status from shelly, skipping device %s", shellyDevice.Name)
 					continue
 				}
 				switchStatus := switchStatusResponse.Switches[0]
@@ -54,12 +54,14 @@ func main() {
 		fmt.Println("Config file not loaded, exiting")
 		os.Exit(1)
 	}
-	gauges := utils.InitPrometheus()
+
+	logger.InitLogger(config.LogLevel)
+	gauges := utils.InitPromExporter()
 	interfaces.InitShelly(*config)
 	knxClient := interfaces.InitKnx(*config)
 
 	if knxClient == nil {
-		fmt.Println("Failed initializing knxClient, exiting")
+		logger.Error("Failed initializing knxClient, exiting")
 		os.Exit(1)
 	}
 

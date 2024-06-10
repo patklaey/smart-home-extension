@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"home_automation/internal/logger"
+
 	"github.com/carlmjohnson/requests"
 	goShelly "github.com/jcodybaker/go-shelly"
-	"github.com/vapourismo/knx-go/knx/util"
 )
 
 const (
@@ -95,7 +96,7 @@ func (actor *ShellyDevice) GetStatus() (*goShelly.ShellyGetStatusResponse, error
 		Fetch(context.Background())
 
 	if err != nil {
-		util.Logger.Printf("Failed to get status for shelly device %s (%s): %s", actor.Name, actor.Ip, err)
+		logger.Error("Failed to get status for shelly device %s (%s): %s", actor.Name, actor.Ip, err)
 		return nil, err
 	}
 	return &response, nil
@@ -112,7 +113,7 @@ func (actor *ShellyDevice) SetRelaisValue(value bool) (int, error) {
 	}
 	err := reqBuilder.Fetch(context.Background())
 	if err != nil {
-		util.Logger.Printf("Failed to set relais status for shelly device %s (%s): %s", actor.Name, actor.Ip, err)
+		logger.Error("Failed to set relais status for shelly device %s (%s): %s", actor.Name, actor.Ip, err)
 		return -1, err
 	}
 

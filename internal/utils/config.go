@@ -14,6 +14,7 @@ type Config struct {
 	Knx          *KnxConfig     `yaml:"knx"`
 	Shelly       *ShellyConfig  `yaml:"shelly"`
 	PromExporter *PromExporter  `yaml:"promExporter"`
+	LogLevel     string         `yaml:"logLevel"`
 }
 
 type WeatherConfig struct {

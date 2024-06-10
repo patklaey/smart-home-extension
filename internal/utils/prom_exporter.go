@@ -5,7 +5,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-type PromGauges struct {
+type PromExporterGauges struct {
 	WindspeedGauge        prometheus.Gauge
 	LuxGauge              prometheus.Gauge
 	TempGauge             *prometheus.GaugeVec
@@ -17,8 +17,8 @@ type PromGauges struct {
 	WifiSignalGauge       *prometheus.GaugeVec
 }
 
-func InitPrometheus() PromGauges {
-	gauges := PromGauges{}
+func InitPromExporter() PromExporterGauges {
+	gauges := PromExporterGauges{}
 	// Set prometheus vars
 	gauges.WindspeedGauge = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "knx_weather_windspeed_kmh",
