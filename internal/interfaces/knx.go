@@ -4,51 +4,36 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"time"
 
+	"home_automation/internal/clients"
 	"home_automation/internal/logger"
 	"home_automation/internal/models"
+	"home_automation/internal/monitors"
 	"home_automation/internal/utils"
 
 	"github.com/vapourismo/knx-go/knx"
-	"github.com/vapourismo/knx-go/knx/cemi"
 	"github.com/vapourismo/knx-go/knx/dpt"
 	"github.com/vapourismo/knx-go/knx/util"
 )
 
-var (
-	windShutterUpLow  float64
-	windShutterUpMed  float64
-	windShutterUpHigh float64
+type KnxInterface struct {
+	KnxTunnel knx.GroupTunnel
+	KnxClient *clients.KnxClient
+}
 
-	windShutterUpLowActive  = true
-	windShutterUpMedActive  = true
-	windShutterUpHighActive = true
-)
-
-type KnxClient = knx.GroupTunnel
-
-var knxDevices = map[string]*models.KnxDevice{}
-var knxClient KnxClient
-
-func InitKnx(config utils.Config) *KnxClient {
+func InitKnx(config utils.Config) *KnxInterface {
 	for _, deviceConfig := range config.Knx.KnxDevices {
 		device, err := deviceConfig.ToKnxDevice()
 		if err != nil {
 			logger.Error("Failed creating knxDevice %s from config: %s\n", deviceConfig.KnxAddress, err)
 			return nil
 		}
-		knxDevices[deviceConfig.KnxAddress] = device
+		utils.KnxDevices[deviceConfig.KnxAddress] = device
 	}
 
-	for knxAddr, theShellyInfo := range KnxShellyMap {
-		knxDevices[knxAddr] = &models.KnxDevice{Type: models.Actor, Name: theShellyInfo.Name, Room: theShellyInfo.Room, ValueType: models.Shelly}
+	for knxAddr, theShellyInfo := range utils.KnxShellyMap {
+		utils.KnxDevices[knxAddr] = &models.KnxDevice{Type: models.Actor, Name: theShellyInfo.Name, Room: theShellyInfo.Room, ValueType: models.Shelly}
 	}
-
-	// Setup windspeed thresholds
-	windShutterUpHigh = config.Weather.Windspeed.ShutteUpHigh
-	windShutterUpMed = config.Weather.Windspeed.ShutteUpMed
-	windShutterUpLow = config.Weather.Windspeed.ShutteUpLow
 
 	// Setup logger for auxiliary logging. This enables us to see log messages from internal
 	// routines.
@@ -56,17 +41,25 @@ func InitKnx(config utils.Config) *KnxClient {
 
 	// Connect to the gateway.
 	knxConnectionAddr := fmt.Sprintf("%s:%d", config.Knx.InterfaceIP, config.Knx.InterfacePort)
-	var err error
-	knxClient, err = knx.NewGroupTunnel(knxConnectionAddr, knx.DefaultTunnelConfig)
+	tunnel, err := knx.NewGroupTunnel(knxConnectionAddr, knx.DefaultTunnelConfig)
 	if err != nil {
 		logger.Error(err.Error())
 		return nil
 	}
 
-	return &knxClient
+	return &KnxInterface{KnxTunnel: tunnel, KnxClient: &clients.KnxClient{KnxTunnel: tunnel}}
 }
 
-func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges) {
+func (knxInterface *KnxInterface) ListenToKNX(gauges utils.PromExporterGauges, weatherMonitor *monitors.WeatherMonitor, shellyClient *clients.ShellyClient) {
+	go func() {
+		// Receive messages from the gateway. The inbound channel is closed with the connection.
+		for msg := range knxInterface.KnxTunnel.Inbound() {
+			ProcessKNXMessage(msg, gauges, weatherMonitor, shellyClient)
+		}
+	}()
+}
+
+func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weatherMonitor *monitors.WeatherMonitor, shellyClient *clients.ShellyClient) {
 	// Map the destinations adressess to the corresponding types
 	var temp dpt.DPT_9001
 	var windspeed dpt.DPT_9005
@@ -75,7 +68,7 @@ func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges) {
 	var lightValue dpt.DPT_5001
 	dest := msg.Destination.String()
 	logger.Trace("%+v", msg)
-	if knxDevice, found := knxDevices[dest]; found {
+	if knxDevice, found := utils.KnxDevices[dest]; found {
 		switch knxDevice.ValueType {
 		case models.Temperatur:
 			err := temp.Unpack(msg.Data)
@@ -89,7 +82,7 @@ func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges) {
 			err := windspeed.Unpack(msg.Data)
 			if err == nil {
 				logger.Debug("Speed: %+v: %v", msg, windspeed)
-				checkShutterUp(float64(windspeed))
+				weatherMonitor.CheckShutterUp(float64(windspeed))
 				gauges.WindspeedGauge.Set(float64(windspeed))
 			} else {
 				logger.Error("Failed to unpack windspeed for %s: %v", msg.Destination, err)
@@ -119,7 +112,7 @@ func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges) {
 			}
 		case models.Shelly:
 			if knxDevice.Type == models.Actor {
-				ShellyHandleKnxMessage(dest, msg)
+				shellyClient.ShellyHandleKnxMessage(dest, msg)
 			} else {
 				logger.Warning("%s not a actor, ignoring message", knxDevice.Name)
 			}
@@ -136,77 +129,4 @@ func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges) {
 	} else {
 		logger.Debug("Destination %s not in destInfo map", msg.Destination)
 	}
-}
-
-func checkShutterUp(windspeed float64) {
-	switch {
-	case windspeed >= windShutterUpHigh:
-		if windShutterUpHighActive {
-			err := shutterUp(models.WindClass{}.High())
-			if err == nil {
-				windShutterUpHighActive = false
-				logger.Info("Shutters for high wind retracted")
-				time.AfterFunc(15*time.Minute, func() { windShutterUpHighActive = true })
-			} else {
-				logger.Warning("Some or all shutters could not be retracted (trigger high wind)")
-			}
-		}
-	case windspeed >= windShutterUpMed:
-		if windShutterUpMedActive {
-			err := shutterUp(models.WindClass{}.Medium())
-			if err == nil {
-				windShutterUpMedActive = false
-				logger.Info("Shutters for medium wind retracted")
-				time.AfterFunc(15*time.Minute, func() { windShutterUpMedActive = true })
-			} else {
-				logger.Warning("Some or all shutters could not be retracted (trigger medium wind)")
-			}
-		}
-	case windspeed >= windShutterUpLow:
-		if windShutterUpLowActive {
-			err := shutterUp(models.WindClass{}.Low())
-			if err == nil {
-				windShutterUpLowActive = false
-				logger.Info("Shutters for low wind retracted")
-				time.AfterFunc(15*time.Minute, func() { windShutterUpLowActive = true })
-			} else {
-				logger.Warning("Some or all shutters could not be retracted (trigger low wind)")
-			}
-		}
-	}
-}
-
-func shutterUp(windClass int) error {
-	var lastError error
-	lastError = nil
-	for knxAddress, knxDevice := range knxDevices {
-		if knxDevice.Type == models.Actor && knxDevice.ValueType == models.Shutter && knxDevice.ShutterDevice.WindClass <= windClass {
-			err := SendMessageToKnx(knxAddress, dpt.DPT_1001(false).Pack())
-			if err != nil {
-				logger.Error("Failed to send shutterUp command for shutter %s (%s): %s\n", knxDevice.Name, knxAddress, err)
-				lastError = err
-			}
-		}
-	}
-	return lastError
-}
-
-func SendMessageToKnx(destination string, data []byte) error {
-
-	cemiDesination, err := cemi.NewGroupAddrString(destination)
-	if err != nil {
-		util.Logger.Printf("Failed to convert destination to cemi address: %s", err)
-		return err
-	}
-	err = knxClient.Send(knx.GroupEvent{
-		Command:     knx.GroupWrite,
-		Destination: cemiDesination,
-		Data:        data,
-	})
-	if err != nil {
-		logger.Error("Failed to send message (%v) with destination %s to the KNX bus: %s", data, destination, err)
-		return err
-	}
-
-	return nil
 }

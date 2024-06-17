@@ -89,6 +89,7 @@ type shellyRelaisActionResponse struct {
 
 func (actor *ShellyDevice) GetStatus() (*goShelly.ShellyGetStatusResponse, error) {
 	var response goShelly.ShellyGetStatusResponse
+	logger.Trace("Get status for shelly device %s", actor.Name)
 	requestUrl := fmt.Sprintf("http://%s/rpc/Shelly.GetStatus", actor.Ip)
 
 	err := requests.URL(requestUrl).
