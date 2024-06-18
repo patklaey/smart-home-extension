@@ -15,6 +15,12 @@ type Config struct {
 	Shelly       *ShellyConfig  `yaml:"shelly"`
 	PromExporter *PromExporter  `yaml:"promExporter"`
 	LogLevel     string         `yaml:"logLevel"`
+	IBricks      *IBricksConfig `yaml:"iBricks"`
+}
+
+type IBricksConfig struct {
+	URL  string `yaml:"url"`
+	Port int    `yaml:"port"`
 }
 
 type WeatherConfig struct {
