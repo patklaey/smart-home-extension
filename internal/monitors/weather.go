@@ -5,14 +5,22 @@ import (
 	"home_automation/internal/logger"
 	"home_automation/internal/models"
 	"home_automation/internal/utils"
+	"slices"
 	"time"
 
 	"github.com/vapourismo/knx-go/knx/dpt"
 )
 
 const (
+	// IBrick Memo Names
 	MemoAllAusoSunBlindsDown = "AllAutoSunBlindsDown"
 	MemoWindWarning          = "SunBlindsWindWarning"
+
+	// WindWarnings
+	WindWarningNone   = "none"
+	WindWarningLow    = "low"
+	WindWarningMedium = "medium"
+	WindWarningHigh   = "high"
 )
 
 type WeatherMonitor struct {
@@ -91,7 +99,7 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 			if err == nil {
 				monitor.WindStatus.windShutterUpLowCheckActive = false
 				logger.Info("Shutters for low wind retracted")
-				err = monitor.IBrickClient.SetMemo(MemoWindWarning, "low")
+				err = monitor.IBrickClient.SetMemo(MemoWindWarning, WindWarningLow)
 				if err != nil {
 					logger.Warning("Low shutters retracted but failed to set %s memo on iBricks", MemoWindWarning)
 				} else {
@@ -141,12 +149,7 @@ func (monitor *WeatherMonitor) checkReactivateShutterUp(maxWindpeed float64) {
 			monitor.WindStatus.windShutterUpMedCheckActive = true
 			monitor.WindStatus.windShutterUpHighCheckActive = true
 			logger.Debug("All shutter up checks reactivated")
-			err := monitor.IBrickClient.SetMemo(MemoWindWarning, "none")
-			if err != nil {
-				logger.Warning("Shutter checks reactivated but failed to set %s memo on iBricks", MemoWindWarning)
-			} else {
-				logger.Debug("Memo %s on iBricks set successfully", MemoWindWarning)
-			}
+			monitor.setIBricksWindWarningMemo(WindWarningNone)
 		}
 	case maxWindpeed <= monitor.WindStatus.windShutterUpMedThreshold*0.9:
 		logger.Trace("Windspeed %.2f lower than 90%% of medium retraction threshold %.2f, reactivating high and medium checks again", maxWindpeed, monitor.WindStatus.windShutterUpMedThreshold*0.9)
@@ -157,12 +160,7 @@ func (monitor *WeatherMonitor) checkReactivateShutterUp(maxWindpeed float64) {
 			monitor.WindStatus.windShutterUpMedCheckActive = true
 			monitor.WindStatus.windShutterUpHighCheckActive = true
 			logger.Debug("High and medium shutter up checks reactivated")
-			err := monitor.IBrickClient.SetMemo(MemoWindWarning, "low")
-			if err != nil {
-				logger.Warning("Shutter checks reactivated but failed to set %s memo on iBricks", MemoWindWarning)
-			} else {
-				logger.Debug("Memo %s on iBricks set successfully", MemoWindWarning)
-			}
+			monitor.setIBricksWindWarningMemo(WindWarningLow)
 		}
 	case maxWindpeed <= monitor.WindStatus.windShutterUpHighThreshold*0.9:
 		logger.Trace("Windspeed %.2f lower than 90%% of high retraction threshold %.2f, reactivating high checks again", maxWindpeed, monitor.WindStatus.windShutterUpHighThreshold*0.9)
@@ -172,13 +170,22 @@ func (monitor *WeatherMonitor) checkReactivateShutterUp(maxWindpeed float64) {
 		} else {
 			monitor.WindStatus.windShutterUpHighCheckActive = true
 			logger.Debug("High shutter up checks reactivated")
-			err := monitor.IBrickClient.SetMemo(MemoWindWarning, "medium")
-			if err != nil {
-				logger.Warning("Shutter checks reactivated but failed to set %s memo on iBricks", MemoWindWarning)
-			} else {
-				logger.Debug("Memo %s on iBricks set successfully", MemoWindWarning)
-			}
+			monitor.setIBricksWindWarningMemo(WindWarningMedium)
 		}
+	}
+}
+
+func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windWarning string) {
+	allowedWindWarnings := []string{WindWarningNone, WindWarningLow, WindWarningMedium, WindWarningHigh}
+	if !slices.Contains(allowedWindWarnings, windWarning) {
+		logger.Error("Wind warning must be among the following values (got %s): %v. Not setting '%s' memo on iBricks", windWarning, allowedWindWarnings, MemoWindWarning)
+		return
+	}
+	err := monitor.IBrickClient.SetMemo(MemoWindWarning, windWarning)
+	if err != nil {
+		logger.Warning("Shutter checks reactivated but failed to set memo '%s' to %s on iBricks", MemoWindWarning, windWarning)
+	} else {
+		logger.Debug("Memo '%s' on iBricks set successfully to '%s'", MemoWindWarning, windWarning)
 	}
 }
 
@@ -198,7 +205,9 @@ func (monitor *WeatherMonitor) shutterUp(windClass int) error {
 	// Set memo in bricks that some shutters are retracted now
 	err := monitor.IBrickClient.SetMemo(MemoAllAusoSunBlindsDown, 0)
 	if err != nil {
-		logger.Warning("Could not set memo %s to 0 on iBricks - automatic extension of shutters might be impacted", MemoAllAusoSunBlindsDown)
+		logger.Warning("Could not set memo '%s' to 0 on iBricks - automatic extension of shutters might be impacted", MemoAllAusoSunBlindsDown)
+	} else {
+		logger.Debug("Memo '%s' on iBricks set successfully to 0", MemoAllAusoSunBlindsDown)
 	}
 
 	return lastError
