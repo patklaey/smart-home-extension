@@ -12,7 +12,6 @@ import (
 	"home_automation/internal/monitors"
 	"home_automation/internal/utils"
 
-	"github.com/gorilla/websocket"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -29,11 +28,12 @@ func main() {
 
 	iBricksClient := clients.InitIBricksClient(config)
 	pClient := clients.InitPromClient()
-	knxInterface := interfaces.InitKnx(*config)
+	knxInterface := interfaces.InitAndConnectKnx(*config)
 	logger.InitLogger(config.LogLevel)
 	gauges := utils.InitPromExporter()
 	shellyClient := clients.InitShelly(*config, knxInterface.KnxClient)
 	weatherMonitor := monitors.InitWeatherMonitor(config, &pClient, knxInterface.KnxClient, iBricksClient)
+	interfaces.StartWebsocketServer(config, shellyClient)
 
 	if knxInterface == nil {
 		logger.Error("Failed initializing knxClient, exiting")
@@ -47,46 +47,6 @@ func main() {
 	weatherMonitor.StartFetchingMaxWindspeed(1)
 	iBricksClient.StartSendingHeartbeat(5)
 
-	startWebsocketServer()
-
 	http.Handle(config.PromExporter.Path, promhttp.Handler())
 	http.ListenAndServe(fmt.Sprintf(":%d", config.PromExporter.Port), nil)
-}
-
-func startWebsocketServer() {
-	go func() {
-		var upgrader = websocket.Upgrader{
-			ReadBufferSize:  1024,
-			WriteBufferSize: 1024,
-		}
-
-		logger.Debug("in StartWebsocket")
-
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
-			websocket, err := upgrader.Upgrade(w, r, nil)
-			if err != nil {
-				logger.Error(err.Error())
-				return
-			}
-			logger.Debug("Websocket Connected!")
-			listen(websocket)
-		})
-		http.ListenAndServe(":8088", nil)
-	}()
-}
-
-func listen(conn *websocket.Conn) {
-	for {
-		// read a message
-		messageType, messageContent, err := conn.ReadMessage()
-		if err != nil {
-			logger.Error(err.Error())
-			return
-		}
-
-		// print out that message
-		fmt.Printf("Message type: %d\n", messageType)
-		fmt.Println(string(messageContent))
-	}
 }

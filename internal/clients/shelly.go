@@ -4,6 +4,7 @@ import (
 	"home_automation/internal/logger"
 	"home_automation/internal/models"
 	"home_automation/internal/utils"
+	"strings"
 	"time"
 
 	"github.com/vapourismo/knx-go/knx"
@@ -27,7 +28,7 @@ func InitShelly(config utils.Config, knxClient *KnxClient) *ShellyClient {
 	return &ShellyClient{KnxClient: knxClient}
 }
 
-func (shellyClient *ShellyClient) ShellyHandleKnxMessage(knxAddr string, msg knx.GroupEvent) {
+func (shellyClient *ShellyClient) HandleKnxMessage(knxAddr string, msg knx.GroupEvent) {
 	shellyDevice := utils.KnxShellyMap[knxAddr]
 	logger.Debug("Handlig shelly message for %+v", msg)
 	if shellyDevice.Type == models.Relais {
@@ -43,6 +44,16 @@ func (shellyClient *ShellyClient) ShellyHandleKnxMessage(knxAddr string, msg knx
 			logger.Error("Warning: failed to send relais value back on KNX, but relais state (%d) set on shelly device!\n", relaisState)
 		}
 	}
+}
+
+func (shellyClient *ShellyClient) HandleFullStatusMessageMessage(message *models.ShellyFullStatusUpdate) error {
+	// Check what source it is
+	// currently only shelly H&T is supported
+	if strings.HasPrefix(message.Source, "shelly") {
+		// TODO: Implement
+		logger.Trace("well ok we've recieved a shelly message")
+	}
+	return nil
 }
 
 func (shellyClient *ShellyClient) StartFetchShellyData(gauges utils.PromExporterGauges) {

@@ -21,7 +21,7 @@ type KnxInterface struct {
 	KnxClient *clients.KnxClient
 }
 
-func InitKnx(config utils.Config) *KnxInterface {
+func InitAndConnectKnx(config utils.Config) *KnxInterface {
 	for _, deviceConfig := range config.Knx.KnxDevices {
 		device, err := deviceConfig.ToKnxDevice()
 		if err != nil {
@@ -112,7 +112,7 @@ func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weat
 			}
 		case models.Shelly:
 			if knxDevice.Type == models.Actor {
-				shellyClient.ShellyHandleKnxMessage(dest, msg)
+				shellyClient.HandleKnxMessage(dest, msg)
 			} else {
 				logger.Warning("%s not a actor, ignoring message", knxDevice.Name)
 			}

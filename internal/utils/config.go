@@ -10,12 +10,24 @@ import (
 )
 
 type Config struct {
-	Weather      *WeatherConfig `yaml:"weather"`
-	Knx          *KnxConfig     `yaml:"knx"`
-	Shelly       *ShellyConfig  `yaml:"shelly"`
-	PromExporter *PromExporter  `yaml:"promExporter"`
-	LogLevel     string         `yaml:"logLevel"`
-	IBricks      *IBricksConfig `yaml:"iBricks"`
+	Weather      *WeatherConfig   `yaml:"weather"`
+	Knx          *KnxConfig       `yaml:"knx"`
+	Shelly       *ShellyConfig    `yaml:"shelly"`
+	PromExporter *PromExporter    `yaml:"promExporter"`
+	LogLevel     string           `yaml:"logLevel"`
+	IBricks      *IBricksConfig   `yaml:"iBricks"`
+	Websocket    *WebsocketConfig `yaml:"websocket"`
+}
+
+type WebsocketConfig struct {
+	Path     string                   `yaml:"path"`
+	Port     int                      `yaml:"port"`
+	Upgrader *WebsocketUpgraderConfig `yaml:"upgrader"`
+}
+
+type WebsocketUpgraderConfig struct {
+	ReadBufferSize  int `yaml:"readBufferSize"`
+	WriteBufferSize int `yaml:"writeBufferSize"`
 }
 
 type IBricksConfig struct {

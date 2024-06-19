@@ -87,6 +87,12 @@ type shellyRelaisActionResponse struct {
 	Source         string  `json:"source"`
 }
 
+type ShellyFullStatusUpdate struct {
+	// TODO Implement
+	Source       string                            `json:"src"`
+	StatusUpdate *goShelly.ShellyGetStatusResponse `json:"fullStatusUpdate"`
+}
+
 func (actor *ShellyDevice) GetStatus() (*goShelly.ShellyGetStatusResponse, error) {
 	var response goShelly.ShellyGetStatusResponse
 	logger.Trace("Get status for shelly device %s", actor.Name)
