@@ -1,8 +1,6 @@
 module home_automation
 
-go 1.21.1
-
-toolchain go1.22.3
+go 1.22.4
 
 require (
 	github.com/gorilla/websocket v1.5.3
@@ -54,7 +52,7 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240617180043-68d350f18fd4 // indirect
 	google.golang.org/grpc v1.64.0 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
-	k8s.io/klog/v2 v2.130.0 // indirect
+	k8s.io/klog/v2 v2.130.1 // indirect
 )
 
 require (
