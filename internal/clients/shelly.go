@@ -72,7 +72,9 @@ func (shellyClient *ShellyClient) HandleFullStatusMessageMessage(message *models
 					logger.Debug("Found shelly h&t humidity device with knxAdress: %s", knxAddress)
 					humidity := message.Parameters.Humidities.Humidity
 					shellyClient.promGauges.HumidityGauge.WithLabelValues(knxAddress, device.Room, device.Name).Set(humidity)
-					err := shellyClient.knxClient.SendMessageToKnx(knxAddress, dpt.DPT_9007(float32(humidity)).Pack())
+					// Even though DPT_9007 would be correct, iBricks does not work with that therefore using also for
+					// the humidity DPT_9001
+					err := shellyClient.knxClient.SendMessageToKnx(knxAddress, dpt.DPT_9001(humidity).Pack())
 					if err != nil {
 						logger.Error("Warning: failed to send humidity value (%.2f) to KNX", humidity)
 						lastError = err
