@@ -54,12 +54,12 @@ func (knxInterface *KnxInterface) ListenToKNX(gauges utils.PromExporterGauges, w
 	go func() {
 		// Receive messages from the gateway. The inbound channel is closed with the connection.
 		for msg := range knxInterface.KnxTunnel.Inbound() {
-			ProcessKNXMessage(msg, gauges, weatherMonitor, shellyClient)
+			processKNXMessage(msg, gauges, weatherMonitor, shellyClient)
 		}
 	}()
 }
 
-func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weatherMonitor *monitors.WeatherMonitor, shellyClient *clients.ShellyClient) {
+func processKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weatherMonitor *monitors.WeatherMonitor, shellyClient *clients.ShellyClient) {
 	// Map the destinations adressess to the corresponding types
 	var temp dpt.DPT_9001
 	var windspeed dpt.DPT_9005
@@ -127,6 +127,6 @@ func ProcessKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weat
 			logger.Warning("No type map for destination: %s", msg.Destination)
 		}
 	} else {
-		logger.Debug("Destination %s not in destInfo map", msg.Destination)
+		logger.Trace("Destination %s not in destInfo map", msg.Destination)
 	}
 }

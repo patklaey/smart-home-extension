@@ -13,6 +13,7 @@ import (
 const (
 	// Value Types
 	Temperatur = iota
+	Humidity
 	Windspeed
 	Brightness
 	Relais
@@ -88,9 +89,44 @@ type shellyRelaisActionResponse struct {
 }
 
 type ShellyFullStatusUpdate struct {
-	// TODO Implement
-	Source       string                            `json:"src"`
-	StatusUpdate *goShelly.ShellyGetStatusResponse `json:"fullStatusUpdate"`
+	Source      string                            `json:"src"`
+	Destination string                            `json:"dst"`
+	Method      string                            `json:"method"`
+	Parameters  *ShellyFullStatusUpdateParameters `json:"params"`
+}
+
+type ShellyFullStatusUpdateParameters struct {
+	StatusUpdate *goShelly.ShellyGetStatusResponse `json:"inline"`
+	Timestamp    float64                           `json:"ts"`
+	DevicePowers ShellyDevicePower                 `json:"devicepower:0"`
+	Websocket    ShellyWebsocketStatus             `json:"ws"`
+	Humidities   ShellyHumidityStatus              `json:"humidity:0"`
+	Temperatures ShellyTemperatureStatus           `json:"temperature:0"`
+}
+type ShellyWebsocketStatus struct {
+	Connected bool `json:"connected"`
+}
+
+type ShellyHumidityStatus struct {
+	Id       int     `json:"id"`
+	Humidity float64 `json:"rh"`
+}
+
+type ShellyTemperatureStatus struct {
+	Id int     `json:"id"`
+	TC float64 `json:"tC"`
+	TF float64 `json:"tF"`
+}
+
+type ShellyDevicePower struct {
+	Id      int `json:"id"`
+	Battery struct {
+		Voltage float64 `json:"V"`
+		Percent int     `json:"percent"`
+	} `json:"battery"`
+	External struct {
+		Present bool `json:"present"`
+	} `json:"external"`
 }
 
 func (actor *ShellyDevice) GetStatus() (*goShelly.ShellyGetStatusResponse, error) {

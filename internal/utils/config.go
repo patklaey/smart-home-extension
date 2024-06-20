@@ -139,6 +139,8 @@ func (deviceConfig *KnxDeviceConfig) ToKnxDevice() (*models.KnxDevice, error) {
 	switch strings.ToLower(deviceConfig.ValueType) {
 	case "temp":
 		device.ValueType = models.Temperatur
+	case "humidity":
+		device.ValueType = models.Humidity
 	case "wind":
 		device.ValueType = models.Windspeed
 	case "lux":

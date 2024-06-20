@@ -12,10 +12,11 @@ import (
 )
 
 type ShellyClient struct {
-	KnxClient *KnxClient
+	knxClient  *KnxClient
+	promGauges utils.PromExporterGauges
 }
 
-func InitShelly(config utils.Config, knxClient *KnxClient) *ShellyClient {
+func InitShelly(config utils.Config, knxClient *KnxClient, gauges utils.PromExporterGauges) *ShellyClient {
 
 	for _, deviceConfig := range config.Shelly.ShellyDevices {
 		device, err := deviceConfig.ToShellyDevice()
@@ -25,7 +26,7 @@ func InitShelly(config utils.Config, knxClient *KnxClient) *ShellyClient {
 		}
 		utils.KnxShellyMap[deviceConfig.KnxAddress] = device
 	}
-	return &ShellyClient{KnxClient: knxClient}
+	return &ShellyClient{knxClient: knxClient, promGauges: gauges}
 }
 
 func (shellyClient *ShellyClient) HandleKnxMessage(knxAddr string, msg knx.GroupEvent) {
@@ -39,7 +40,7 @@ func (shellyClient *ShellyClient) HandleKnxMessage(knxAddr string, msg knx.Group
 			logger.Error("Failed to set relais value on device %s (%s): %s\n", shellyDevice.Name, shellyDevice.Ip, err)
 			return
 		}
-		err = shellyClient.KnxClient.SendMessageToKnx(shellyDevice.KnxReturnAddress, dpt.DPT_1001(relaisState == 1).Pack())
+		err = shellyClient.knxClient.SendMessageToKnx(shellyDevice.KnxReturnAddress, dpt.DPT_1001(relaisState == 1).Pack())
 		if err != nil {
 			logger.Error("Warning: failed to send relais value back on KNX, but relais state (%d) set on shelly device!\n", relaisState)
 		}
@@ -49,11 +50,43 @@ func (shellyClient *ShellyClient) HandleKnxMessage(knxAddr string, msg knx.Group
 func (shellyClient *ShellyClient) HandleFullStatusMessageMessage(message *models.ShellyFullStatusUpdate) error {
 	// Check what source it is
 	// currently only shelly H&T is supported
-	if strings.HasPrefix(message.Source, "shelly") {
-		// TODO: Implement
-		logger.Trace("well ok we've recieved a shelly message")
+	var lastError error
+	lastError = nil
+	if strings.HasPrefix(message.Source, "shellyhtg3") {
+		for knxAddress, device := range utils.KnxDevices {
+			if device.Name == "Shelly H&T" {
+				if device.ValueType == models.Temperatur {
+					logger.Debug("Found shelly h&t temperature device with knxAdress: %s", knxAddress)
+					temperature := message.Parameters.Temperatures.TC
+					shellyClient.promGauges.TempGauge.WithLabelValues(knxAddress, device.Room, device.Name).Set(temperature)
+					err := shellyClient.knxClient.SendMessageToKnx(knxAddress, dpt.DPT_9001(temperature).Pack())
+					if err != nil {
+						logger.Error("Warning: failed to send temperature value (%.2f) to KNX", temperature)
+						lastError = err
+					} else {
+						logger.Debug("Successfully sent temperature value (%.2f) to KNX", temperature)
+					}
+					continue
+				}
+				if device.ValueType == models.Humidity {
+					logger.Debug("Found shelly h&t humidity device with knxAdress: %s", knxAddress)
+					humidity := message.Parameters.Humidities.Humidity
+					shellyClient.promGauges.HumidityGauge.WithLabelValues(knxAddress, device.Room, device.Name).Set(humidity)
+					err := shellyClient.knxClient.SendMessageToKnx(knxAddress, dpt.DPT_9007(float32(humidity)).Pack())
+					if err != nil {
+						logger.Error("Warning: failed to send humidity value (%.2f) to KNX", humidity)
+						lastError = err
+					} else {
+						logger.Debug("Successfully sent humidity value (%.2f) to KNX", humidity)
+					}
+					continue
+				}
+			}
+		}
+	} else {
+		logger.Trace("Unknown message from source %s, ignoring message", message.Source)
 	}
-	return nil
+	return lastError
 }
 
 func (shellyClient *ShellyClient) StartFetchShellyData(gauges utils.PromExporterGauges) {
@@ -74,6 +107,7 @@ func (shellyClient *ShellyClient) StartFetchShellyData(gauges utils.PromExporter
 				gauges.WifiSignalGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatusResponse.Wifi.RRSI)
 				gauges.ShellyTempGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatus.Temperature.C)
 			}
+			logger.Trace("Done fetching status for all shellies")
 		}
 	}()
 }

@@ -9,6 +9,7 @@ type PromExporterGauges struct {
 	WindspeedGauge        prometheus.Gauge
 	LuxGauge              prometheus.Gauge
 	TempGauge             *prometheus.GaugeVec
+	HumidityGauge         *prometheus.GaugeVec
 	RainIndicator         prometheus.Gauge
 	PowerConsumptionGauge *prometheus.GaugeVec
 	VoltageGauge          *prometheus.GaugeVec
@@ -33,6 +34,14 @@ func InitPromExporter() PromExporterGauges {
 			Subsystem: "knx",
 			Name:      "room_temperatur_C",
 			Help:      "The room temperatur in degrees celsius",
+		},
+		[]string{"knxAddress", "roomName", "sensorName"},
+	)
+	gauges.HumidityGauge = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Subsystem: "knx",
+			Name:      "room_humidity_percentage",
+			Help:      "The room humidity in percentage",
 		},
 		[]string{"knxAddress", "roomName", "sensorName"},
 	)

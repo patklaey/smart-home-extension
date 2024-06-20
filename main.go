@@ -26,12 +26,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	logger.InitLogger(config.LogLevel)
+	gauges := utils.InitPromExporter()
 	iBricksClient := clients.InitIBricksClient(config)
 	pClient := clients.InitPromClient()
 	knxInterface := interfaces.InitAndConnectKnx(*config)
-	logger.InitLogger(config.LogLevel)
-	gauges := utils.InitPromExporter()
-	shellyClient := clients.InitShelly(*config, knxInterface.KnxClient)
+	shellyClient := clients.InitShelly(*config, knxInterface.KnxClient, gauges)
 	weatherMonitor := monitors.InitWeatherMonitor(config, &pClient, knxInterface.KnxClient, iBricksClient)
 	interfaces.StartWebsocketServer(config, shellyClient)
 

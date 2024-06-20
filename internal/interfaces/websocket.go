@@ -9,7 +9,6 @@ import (
 	"home_automation/internal/models"
 	"home_automation/internal/utils"
 	"net/http"
-	"strings"
 )
 
 var localShellyClient *clients.ShellyClient
@@ -25,7 +24,7 @@ func StartWebsocketServer(config *utils.Config, shellyClient *clients.ShellyClie
 
 			socket, err := upgrader.Upgrade(w, r, nil)
 			if err != nil {
-				logger.Error(err.Error())
+				logger.Error("Error upgrading to websocket protocol: %s - request host: %s", err.Error(), r.Host)
 				return
 			}
 			listen(socket)
@@ -51,8 +50,8 @@ func listen(conn *websocket.Conn) {
 			return
 		}
 
-		if source, found := jsonMap["src"]; found {
-			if strings.HasPrefix(source.(string), "shelly") {
+		if method, found := jsonMap["method"]; found {
+			if method == "NotifyFullStatus" {
 				var shellyStatusMessage *models.ShellyFullStatusUpdate
 				err = json.Unmarshal(messageContent, &shellyStatusMessage)
 				if err != nil {
