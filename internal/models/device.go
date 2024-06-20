@@ -21,6 +21,7 @@ const (
 	Light
 	Indicator
 	Shelly
+	Meter
 
 	// Types
 	Sensor
@@ -78,6 +79,35 @@ type ShellyDevice struct {
 	KnxReturnAddress string
 }
 
+type ShellyGetStatusResponse struct {
+	BLE   *goShelly.BLEStatus   `json:"ble,omitempty"`
+	Cloud *goShelly.CloudStatus `json:"cloud,omitempty"`
+	MQTT  *goShelly.MQTTStatus  `json:"mqtt,omitempty"`
+	PM1   struct {
+		Id      int     `json:"id"`
+		Voltage float64 `json:"voltage"`
+		Current float64 `json:"current"`
+		Apower  float64 `json:"apower"`
+		Freq    float64 `json:"freq"`
+		Aenergy struct {
+			Total    float64   `json:"total"`
+			ByMinute []float64 `json:"by_minute"`
+			MinuteTs float64   `json:"minute_ts"`
+		} `json:"aenergy"`
+		RetAenergy struct {
+			Total    float64   `json:"total"`
+			ByMinute []float64 `json:"by_minute"`
+			MinuteTs float64   `json:"minute_ts"`
+		} `json:"ret_aenergy"`
+	} `json:"pm1:0,omitempty"`
+	System *goShelly.SysStatus    `json:"sys,omitempty"`
+	Wifi   *goShelly.WifiStatus   `json:"wifi,omitempty"`
+	Switch *goShelly.SwitchStatus `json:"switch:0,omitempty"`
+	Ws     struct {
+		Connected bool `json:"connected"`
+	} `json:"ws,omitempty"`
+}
+
 type shellyRelaisActionResponse struct {
 	IsOn           bool    `json:"ison"`
 	HasTimer       bool    `json:"has_timer"`
@@ -129,8 +159,8 @@ type ShellyDevicePower struct {
 	} `json:"external"`
 }
 
-func (actor *ShellyDevice) GetStatus() (*goShelly.ShellyGetStatusResponse, error) {
-	var response goShelly.ShellyGetStatusResponse
+func (actor *ShellyDevice) GetStatus() (*ShellyGetStatusResponse, error) {
+	var response ShellyGetStatusResponse
 	logger.Trace("Get status for shelly device %s", actor.Name)
 	requestUrl := fmt.Sprintf("http://%s/rpc/Shelly.GetStatus", actor.Ip)
 

@@ -14,4 +14,5 @@ FROM golang:${GOVERSION} as application
 COPY --from=compile /app/goapp /app/goapp
 
 EXPOSE 8080
+EXPOSE 8088
 ENTRYPOINT [ "/app/goapp" ]

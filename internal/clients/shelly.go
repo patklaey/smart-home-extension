@@ -97,17 +97,32 @@ func (shellyClient *ShellyClient) StartFetchShellyData(gauges utils.PromExporter
 		for range time.Tick(time.Second * 5) {
 			logger.Trace("Getting status for all shelly devices")
 			for knxAddr, shellyDevice := range utils.KnxShellyMap {
-				switchStatusResponse, err := shellyDevice.GetStatus()
+				shellyStatusResponse, err := shellyDevice.GetStatus()
 				if err != nil {
 					logger.Warning("Failed getting status from shelly, skipping device %s", shellyDevice.Name)
 					continue
 				}
-				switchStatus := switchStatusResponse.Switches[0]
-				gauges.CurrentGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatus.Current)
-				gauges.VoltageGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatus.Voltage)
-				gauges.PowerConsumptionGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatus.APower)
-				gauges.WifiSignalGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatusResponse.Wifi.RRSI)
-				gauges.ShellyTempGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*switchStatus.Temperature.C)
+				var current, voltage, apower, temp float64
+				switch shellyDevice.Type {
+				case models.Meter:
+					current = shellyStatusResponse.PM1.Current
+					voltage = shellyStatusResponse.PM1.Voltage
+					apower = shellyStatusResponse.PM1.Apower
+				case models.Relais:
+					current = *shellyStatusResponse.Switch.Current
+					voltage = *shellyStatusResponse.Switch.Voltage
+					apower = *shellyStatusResponse.Switch.APower
+					temp = *shellyStatusResponse.Switch.Temperature.C
+				default:
+					logger.Warning("Unknown shelly device type '%d', skipping device '%s'", shellyDevice.Type, shellyDevice.Name)
+				}
+				gauges.CurrentGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(current)
+				gauges.VoltageGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(voltage)
+				gauges.PowerConsumptionGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(apower)
+				gauges.WifiSignalGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(*shellyStatusResponse.Wifi.RRSI)
+				if shellyDevice.Type == models.Relais {
+					gauges.ShellyTempGauge.WithLabelValues(knxAddr, shellyDevice.Room, shellyDevice.Name, shellyDevice.Ip).Set(temp)
+				}
 			}
 			logger.Trace("Done fetching status for all shellies")
 		}

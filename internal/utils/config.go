@@ -113,6 +113,8 @@ func (deviceConfig *ShellyDeviceConfig) ToShellyDevice() (*models.ShellyDevice, 
 	switch strings.ToLower(deviceConfig.Type) {
 	case "relais":
 		device.Type = models.Relais
+	case "meter":
+		device.Type = models.Meter
 	}
 
 	room := getRoomFromString(deviceConfig.Room)
