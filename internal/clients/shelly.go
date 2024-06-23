@@ -27,6 +27,7 @@ func InitShelly(config utils.Config, knxClient *KnxClient, gauges utils.PromExpo
 			continue
 		}
 		utils.KnxShellyMap[deviceConfig.KnxAddress] = device
+		utils.KnxDevices[device.KnxAddress] = &models.KnxDevice{Type: models.Actor, Name: device.Name, Room: device.Room, ValueType: models.Shelly}
 	}
 	return &ShellyClient{knxClient: knxClient, promGauges: gauges}
 }
