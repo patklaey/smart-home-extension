@@ -6,9 +6,9 @@ import (
 	"github.com/gorilla/websocket"
 	"home_automation/internal/clients"
 	"home_automation/internal/logger"
-	"home_automation/internal/models"
 	"home_automation/internal/utils"
 	"net/http"
+	"strings"
 )
 
 var localShellyClient *clients.ShellyClient
@@ -50,22 +50,19 @@ func listen(conn *websocket.Conn) {
 			return
 		}
 
-		if method, found := jsonMap["method"]; found {
-			if method == "NotifyFullStatus" {
-				var shellyStatusMessage *models.ShellyFullStatusUpdate
-				err = json.Unmarshal(messageContent, &shellyStatusMessage)
-				if err != nil {
-					logger.Error("Could not unmarshall message to map: %s", err)
-					return
-				}
-				err = localShellyClient.HandleFullStatusMessageMessage(shellyStatusMessage)
+		if source, found := jsonMap["src"]; found {
+			if strings.HasPrefix(source.(string), "shelly") {
+				err = localShellyClient.HandleWebSocketMessage(messageContent)
 				if err != nil {
 					logger.Warning("The following message received on the websocket could not successfully be handled by the shelly client: %s", string(messageContent))
 				} else {
-					logger.Trace("Websocket message successfully processed")
+					logger.Trace("Websocket message successfully processed by shelly client")
 				}
+				continue
 			}
 		}
 
+		// if we reach this point, no destination client for the message found
+		logger.Warning("The following message received on the websocket was not understood, ignoring it. %s", string(messageContent))
 	}
 }

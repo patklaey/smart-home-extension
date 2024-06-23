@@ -43,7 +43,7 @@ func main() {
 	defer knxInterface.KnxClient.KnxTunnel.Close()
 
 	knxInterface.ListenToKNX(gauges, &weatherMonitor, shellyClient)
-	shellyClient.StartFetchShellyData(gauges)
+	shellyClient.StartFetchShellyData(gauges, config.Shelly.ShellyPullFrequencySeconds)
 	weatherMonitor.StartFetchingMaxWindspeed(1)
 	iBricksClient.StartSendingHeartbeat(5)
 

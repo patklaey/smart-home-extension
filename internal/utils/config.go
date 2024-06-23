@@ -62,7 +62,8 @@ type TypeConfig struct {
 }
 
 type ShellyConfig struct {
-	ShellyDevices []ShellyDeviceConfig `yaml:"shellyDevices"`
+	ShellyDevices              []ShellyDeviceConfig `yaml:"shellyDevices"`
+	ShellyPullFrequencySeconds int                  `yaml:"pullFrequencySec"`
 }
 
 type ShellyDeviceConfig struct {
