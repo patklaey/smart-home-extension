@@ -3,9 +3,10 @@ package models
 import (
 	"context"
 	"fmt"
+	"home_automation/internal/logger"
+
 	"github.com/carlmjohnson/requests"
 	goShelly "github.com/jcodybaker/go-shelly"
-	"home_automation/internal/logger"
 )
 
 const (

@@ -17,7 +17,7 @@ type PromClient struct {
 	address string
 }
 
-func InitPromClient() PromClient {
+func InitPromClient() *PromClient {
 	address := "http://192.168.1.137:9090"
 	client, err := api.NewClient(api.Config{
 		Address: address,
@@ -29,7 +29,7 @@ func InitPromClient() PromClient {
 
 	v1api := v1.NewAPI(client)
 
-	return PromClient{client: v1api, address: address}
+	return &PromClient{client: v1api, address: address}
 }
 
 func (promClient *PromClient) Query(metric string) ([]float64, error) {

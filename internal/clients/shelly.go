@@ -19,7 +19,7 @@ type ShellyClient struct {
 
 var shellyDevices map[string]*models.ShellyDevice
 
-func InitShelly(config utils.Config, knxClient *KnxClient, gauges utils.PromExporterGauges) *ShellyClient {
+func InitShelly(config *utils.Config, knxClient *KnxClient, gauges utils.PromExporterGauges) *ShellyClient {
 	for _, deviceConfig := range config.Shelly.ShellyDevices {
 		device, err := deviceConfig.ToShellyDevice()
 		if err != nil {

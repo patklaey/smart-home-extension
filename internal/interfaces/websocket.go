@@ -3,12 +3,13 @@ package interfaces
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/websocket"
 	"home_automation/internal/clients"
 	"home_automation/internal/logger"
 	"home_automation/internal/utils"
 	"net/http"
 	"strings"
+
+	"github.com/gorilla/websocket"
 )
 
 var localShellyClient *clients.ShellyClient

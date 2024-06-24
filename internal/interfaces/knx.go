@@ -21,7 +21,7 @@ type KnxInterface struct {
 	KnxClient *clients.KnxClient
 }
 
-func InitAndConnectKnx(config utils.Config) *KnxInterface {
+func InitAndConnectKnx(config *utils.Config) *KnxInterface {
 	for _, deviceConfig := range config.Knx.KnxDevices {
 		device, err := deviceConfig.ToKnxDevice()
 		if err != nil {
