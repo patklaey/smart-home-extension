@@ -74,10 +74,10 @@ func (shellyClient *ShellyClient) HandleFullStatusMessageMessage(message *models
 		return nil
 	}
 	// Check what source it is
-	var signal float64
-	var voltage float64
-	var apower float64
-	var current float64
+	var signal *float64
+	var voltage *float64
+	var apower *float64
+	var current *float64
 	switch {
 	case strings.HasPrefix(message.Source, "shellyhtg3"):
 		logger.Trace("According to device source (%s) it's a shelly H&T gen3 message", message.Source)
@@ -85,25 +85,25 @@ func (shellyClient *ShellyClient) HandleFullStatusMessageMessage(message *models
 		return lastError
 	case strings.HasPrefix(message.Source, "shellypmminig3"):
 		logger.Trace("According to device source (%s) it's a shelly PM1 mini gen3 message", message.Source)
-		signal = *message.Parameters.Wifi.RRSI
+		signal = message.Parameters.Wifi.RRSI
 		voltage = message.Parameters.PM1.Voltage
 		apower = message.Parameters.PM1.Apower
 		current = message.Parameters.PM1.Current
 	case strings.HasPrefix(message.Source, "shellyplus1pm") || strings.HasPrefix(message.Source, "shelly1pmminig3"):
 		logger.Trace("According to device source (%s) it's a shelly relais message", message.Source)
-		signal = *message.Parameters.Wifi.RRSI
-		voltage = *message.Parameters.Switch.Voltage
-		apower = *message.Parameters.Switch.APower
-		current = *message.Parameters.Switch.Current
+		signal = message.Parameters.Wifi.RRSI
+		voltage = message.Parameters.Switch.Voltage
+		apower = message.Parameters.Switch.APower
+		current = message.Parameters.Switch.Current
 	default:
 		logger.Trace("Unknown message from source %s, ignoring message", message.Source)
 	}
 
 	// Set all gauges accordingly
-	shellyClient.promGauges.WifiSignalGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(signal)
-	shellyClient.promGauges.VoltageGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(voltage)
-	shellyClient.promGauges.CurrentGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(current)
-	shellyClient.promGauges.PowerConsumptionGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(apower)
+	shellyClient.promGauges.WifiSignalGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(*signal)
+	shellyClient.promGauges.VoltageGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(*voltage)
+	shellyClient.promGauges.CurrentGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(*current)
+	shellyClient.promGauges.PowerConsumptionGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(*apower)
 	return lastError
 }
 
@@ -211,13 +211,19 @@ func (shellyClient *ShellyClient) HandleStatusMessage(message *models.ShellyStat
 	// Only proceed if the device is already known
 	if device, found := shellyDevices[message.Source]; found {
 		// As it's not known what data is sent, we need to test for all options
-		if message.Parameters.PM1 != nil && message.Parameters.PM1.Voltage != 0 {
+		if message.Parameters.PM1 != nil {
 			voltage := message.Parameters.PM1.Voltage
 			apower := message.Parameters.PM1.Apower
 			current := message.Parameters.PM1.Current
-			shellyClient.promGauges.VoltageGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(voltage)
-			shellyClient.promGauges.CurrentGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(current)
-			shellyClient.promGauges.PowerConsumptionGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(apower)
+			if voltage != nil {
+				shellyClient.promGauges.VoltageGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(*voltage)
+			}
+			if current != nil {
+				shellyClient.promGauges.CurrentGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(*current)
+			}
+			if apower != nil {
+				shellyClient.promGauges.PowerConsumptionGauge.WithLabelValues(device.KnxAddress, device.Room, device.Name, device.Ip).Set(*apower)
+			}
 		}
 	} else {
 		logger.Info("Shelly device '%s' not yet known, need to wait for next full status update", message.Source)

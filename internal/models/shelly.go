@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"home_automation/internal/logger"
+	"net/http"
+	"time"
 
 	"github.com/carlmjohnson/requests"
 	goShelly "github.com/jcodybaker/go-shelly"
@@ -37,10 +39,10 @@ type ShellyGetStatusResponse struct {
 
 type PM1 struct {
 	Id         int                      `json:"id"`
-	Voltage    float64                  `json:"voltage,omitempty"`
-	Current    float64                  `json:"current,omitempty"`
-	Apower     float64                  `json:"apower,omitempty"`
-	Freq       float64                  `json:"freq,omitempty"`
+	Voltage    *float64                 `json:"voltage,omitempty"`
+	Current    *float64                 `json:"current,omitempty"`
+	Apower     *float64                 `json:"apower,omitempty"`
+	Freq       *float64                 `json:"freq,omitempty"`
 	AEnergy    *goShelly.EnergyCounters `json:"aenergy,omitempty"`
 	RetAEnergy *goShelly.EnergyCounters `json:"ret_aenergy,omitempty"`
 }
@@ -106,7 +108,12 @@ func (actor *ShellyDevice) GetStatus() (*ShellyGetStatusResponse, error) {
 	logger.Trace("Get status for shelly device %s", actor.Name)
 	requestUrl := fmt.Sprintf("http://%s/rpc/Shelly.GetStatus", actor.Ip)
 
-	err := requests.URL(requestUrl).
+	// Create a client with a short timeout in case some devices are not reachable
+	httpClient := http.Client{Timeout: 3 * time.Second}
+
+	err := requests.
+		URL(requestUrl).
+		Client(&httpClient).
 		ToJSON(&response).
 		Fetch(context.Background())
 
