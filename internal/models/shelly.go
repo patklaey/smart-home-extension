@@ -109,7 +109,7 @@ func (actor *ShellyDevice) GetStatus() (*ShellyGetStatusResponse, error) {
 	requestUrl := fmt.Sprintf("http://%s/rpc/Shelly.GetStatus", actor.Ip)
 
 	// Create a client with a short timeout in case some devices are not reachable
-	httpClient := http.Client{Timeout: 3 * time.Second}
+	httpClient := http.Client{Timeout: 5 * time.Second}
 
 	err := requests.
 		URL(requestUrl).
