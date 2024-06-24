@@ -44,8 +44,8 @@ func main() {
 
 	knxInterface.ListenToKNX(gauges, &weatherMonitor, shellyClient)
 	shellyClient.StartFetchShellyData(gauges, config.Shelly.ShellyPullFrequencySeconds)
-	weatherMonitor.StartFetchingMaxWindspeed(5)
-	iBricksClient.StartSendingHeartbeat(5)
+	weatherMonitor.StartFetchingMaxWindspeed(config.Weather.Windspeed.CheckAverageFrequency)
+	iBricksClient.StartSendingHeartbeat(config.IBricks.HeartbeatFrequency)
 
 	http.Handle(config.PromExporter.Path, promhttp.Handler())
 	http.ListenAndServe(fmt.Sprintf(":%d", config.PromExporter.Port), nil)

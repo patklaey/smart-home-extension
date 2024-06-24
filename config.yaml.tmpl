@@ -1,3 +1,4 @@
+logLevel: "trace"
 websocket:
   path: "/"
   port: 8088
@@ -7,11 +8,13 @@ websocket:
 iBricks:
   url: "192.168.1.2"
   port: "80"
+  heartbeatFrequencyMin: 5
 weather:
   windspeed:
-    shutterUpLow: 21
-    shutterUpMed: 27
-    shutterUpHigh: 35
+    checkAverageFrequencyMin: 5
+    shutterUpLowThreshold: 21
+    shutterUpMedThreshold: 27
+    shutterUpHighThreshold: 35
 knx:
   interfaceIp: "1.2.3.4"
   interfacePort: 3671

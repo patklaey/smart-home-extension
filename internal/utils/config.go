@@ -31,8 +31,9 @@ type WebsocketUpgraderConfig struct {
 }
 
 type IBricksConfig struct {
-	URL  string `yaml:"url"`
-	Port int    `yaml:"port"`
+	URL                string `yaml:"url"`
+	Port               int    `yaml:"port"`
+	HeartbeatFrequency int    `yaml:"heartbeatFrequencyMin"`
 }
 
 type WeatherConfig struct {
@@ -40,9 +41,10 @@ type WeatherConfig struct {
 }
 
 type WindspeedConfig struct {
-	ShutteUpLow  float64 `yaml:"shutterUpLow"`
-	ShutteUpMed  float64 `yaml:"shutterUpMed"`
-	ShutteUpHigh float64 `yaml:"shutterUpHigh"`
+	ShutteUpLowThreshold  float64 `yaml:"shutterUpLowThreshold"`
+	ShutteUpMedThreshold  float64 `yaml:"shutterUpMedThreshold"`
+	ShutteUpHighThreshold float64 `yaml:"shutterUpHighThreshold"`
+	CheckAverageFrequency int     `yaml:"checkAverageFrequencyMin"`
 }
 
 type KnxConfig struct {

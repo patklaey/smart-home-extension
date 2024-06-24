@@ -45,9 +45,9 @@ func InitWeatherMonitor(config *utils.Config, pClient *clients.PromClient, kClie
 		KnxClient:    kClient,
 		IBrickClient: iBricksClient,
 		WindStatus: &WindStatus{
-			windShutterUpLowThreshold:    config.Weather.Windspeed.ShutteUpLow,
-			windShutterUpMedThreshold:    config.Weather.Windspeed.ShutteUpMed,
-			windShutterUpHighThreshold:   config.Weather.Windspeed.ShutteUpHigh,
+			windShutterUpLowThreshold:    config.Weather.Windspeed.ShutteUpLowThreshold,
+			windShutterUpMedThreshold:    config.Weather.Windspeed.ShutteUpMedThreshold,
+			windShutterUpHighThreshold:   config.Weather.Windspeed.ShutteUpHighThreshold,
 			windShutterUpLowCheckActive:  true,
 			windShutterUpMedCheckActive:  true,
 			windShutterUpHighCheckActive: true,
