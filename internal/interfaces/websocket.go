@@ -43,7 +43,7 @@ func listen(conn *websocket.Conn) {
 			return
 		}
 
-		logger.Debug("Websocket message received: %s", string(messageContent))
+		logger.Trace("Websocket message received: %s", string(messageContent))
 		var jsonMap map[string]interface{}
 		err = json.Unmarshal(messageContent, &jsonMap)
 		if err != nil {
