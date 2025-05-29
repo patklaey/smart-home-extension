@@ -197,7 +197,7 @@ func (shellyClient *ShellyClient) HandleWebSocketMessage(messageContent []byte) 
 			return nil
 		}
 	default:
-		logger.Error("Unexpected method from shelly websocket message received: '%s'", shellyMessage.Method)
+		logger.Warning("Unexpected method from shelly websocket message received: '%s'", shellyMessage.Method)
 	}
 	return nil
 }
