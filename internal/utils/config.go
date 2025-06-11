@@ -45,6 +45,7 @@ type WindspeedConfig struct {
 	ShutteUpMedThreshold  float64 `yaml:"shutterUpMedThreshold"`
 	ShutteUpHighThreshold float64 `yaml:"shutterUpHighThreshold"`
 	CheckAverageFrequency int     `yaml:"checkAverageFrequencyMin"`
+	WindResetGracePeriod  int     `yaml:"windResetGracePeriodMin"`
 }
 
 type KnxConfig struct {

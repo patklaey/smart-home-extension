@@ -1,6 +1,7 @@
 package monitors
 
 import (
+	"fmt"
 	"home_automation/internal/clients"
 	"home_automation/internal/logger"
 	"home_automation/internal/models"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/vapourismo/knx-go/knx/dpt"
 )
+
+// TODO: Track shutter position as reported by KNX and store it here to be used as reference to retract when high windspeeds are detected
 
 const (
 	// IBrick Memo Names
@@ -24,10 +27,11 @@ const (
 )
 
 type WeatherMonitor struct {
-	PromClient   *clients.PromClient
-	WindStatus   *WindStatus
-	KnxClient    *clients.KnxClient
-	IBrickClient *clients.IBricksClient
+	PromClient           *clients.PromClient
+	WindStatus           *WindStatus
+	KnxClient            *clients.KnxClient
+	IBrickClient         *clients.IBricksClient
+	windResetGracePeriod int
 }
 
 type WindStatus struct {
@@ -41,9 +45,10 @@ type WindStatus struct {
 
 func InitWeatherMonitor(config *utils.Config, pClient *clients.PromClient, kClient *clients.KnxClient, iBricksClient *clients.IBricksClient) WeatherMonitor {
 	return WeatherMonitor{
-		PromClient:   pClient,
-		KnxClient:    kClient,
-		IBrickClient: iBricksClient,
+		PromClient:           pClient,
+		KnxClient:            kClient,
+		IBrickClient:         iBricksClient,
+		windResetGracePeriod: config.Weather.Windspeed.WindResetGracePeriod,
 		WindStatus: &WindStatus{
 			windShutterUpLowThreshold:    config.Weather.Windspeed.ShutteUpLowThreshold,
 			windShutterUpMedThreshold:    config.Weather.Windspeed.ShutteUpMedThreshold,
@@ -117,20 +122,21 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 func (monitor *WeatherMonitor) StartFetchingMaxWindspeed(frequency int) {
 	go func() {
 		for range time.Tick(time.Minute * time.Duration(frequency)) {
-			// Get max wind value for the last 15 minutes
-			values, err := monitor.PromClient.Query("max_over_time(knx_weather_windspeed_kmh[15m])")
+			// Get max wind value for the last minutes
+			query := fmt.Sprintf("max_over_time(knx_weather_windspeed_kmh[%dm])", monitor.windResetGracePeriod)
+			values, err := monitor.PromClient.Query(query)
 			if err != nil {
 				logger.Error("Failed to query prometheus, retrying in %d minute(s)", frequency)
 				continue
 			}
 			switch len(values) {
 			case 0:
-				logger.Warning("Not received any result for max_over_time(knx_weather_windspeed_kmh[15m]), retrying in %d minute(s)", frequency)
+				logger.Warning("Not received any result for max_over_time(knx_weather_windspeed_kmh[%dm]), retrying in %d minute(s)", monitor.windResetGracePeriod, frequency)
 			case 1:
-				logger.Debug("Max windspeed in the last 15 minutes: %.2f", values[0])
+				logger.Debug("Max windspeed in the last %d minutes: %.2f", monitor.windResetGracePeriod, values[0])
 				monitor.checkReactivateShutterUp(values[0])
 			default:
-				logger.Warning("More than one result for max_over_time(knx_weather_windspeed_kmh[15m]) received (expected just one) - using first one to continue: %v", values)
+				logger.Warning("More than one result for max_over_time(knx_weather_windspeed_kmh[%dm]) received (expected just one) - using first one to continue: %v", monitor.windResetGracePeriod, values)
 				monitor.checkReactivateShutterUp(values[0])
 			}
 		}

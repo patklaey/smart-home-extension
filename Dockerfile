@@ -1,6 +1,6 @@
 ARG GOVERSION=1.22.4
 
-FROM golang:${GOVERSION} as compile
+FROM golang:${GOVERSION} AS compile
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ COPY internal ./internal/
 
 RUN go build -o /app/goapp
 
-FROM golang:${GOVERSION} as application
+FROM golang:${GOVERSION} AS application
 
 COPY --from=compile /app/goapp /app/goapp
 
