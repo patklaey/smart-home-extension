@@ -33,6 +33,7 @@ func main() {
 	knxInterface := interfaces.InitAndConnectKnx(config)
 	shellyClient := clients.InitShelly(config, knxInterface.KnxClient, gauges)
 	weatherMonitor := monitors.InitWeatherMonitor(config, pClient, knxInterface.KnxClient, iBricksClient)
+	astronomyClient := clients.InitAstronomyClient(iBricksClient, config)
 	interfaces.StartWebsocketServer(config, shellyClient)
 
 	if knxInterface == nil {
@@ -46,7 +47,7 @@ func main() {
 	shellyClient.StartFetchShellyData(gauges, config.Shelly.ShellyPullFrequencySeconds)
 	weatherMonitor.StartFetchingMaxWindspeed(config.Weather.Windspeed.CheckAverageFrequency)
 	iBricksClient.StartSendingHeartbeat(config.IBricks.HeartbeatFrequency)
-
+	astronomyClient.StartUpdatingSunAzimuth(config.Ipgeolocation.FetchFrequency)
 	http.Handle(config.PromExporter.Path, promhttp.Handler())
 	http.ListenAndServe(fmt.Sprintf(":%d", config.PromExporter.Port), nil)
 }

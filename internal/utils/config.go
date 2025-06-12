@@ -10,13 +10,19 @@ import (
 )
 
 type Config struct {
-	Weather      *WeatherConfig   `yaml:"weather"`
-	Knx          *KnxConfig       `yaml:"knx"`
-	Shelly       *ShellyConfig    `yaml:"shelly"`
-	PromExporter *PromExporter    `yaml:"promExporter"`
-	LogLevel     string           `yaml:"logLevel"`
-	IBricks      *IBricksConfig   `yaml:"iBricks"`
-	Websocket    *WebsocketConfig `yaml:"websocket"`
+	Weather       *WeatherConfig   `yaml:"weather"`
+	Knx           *KnxConfig       `yaml:"knx"`
+	Shelly        *ShellyConfig    `yaml:"shelly"`
+	PromExporter  *PromExporter    `yaml:"promExporter"`
+	LogLevel      string           `yaml:"logLevel"`
+	IBricks       *IBricksConfig   `yaml:"iBricks"`
+	Websocket     *WebsocketConfig `yaml:"websocket"`
+	Ipgeolocation *Ipgeoloaction   `yaml:"ipgeolocation"`
+}
+
+type Ipgeoloaction struct {
+	ApiKey         string `yaml:"apiKey"`
+	FetchFrequency int    `yaml:"fetchFrequency"`
 }
 
 type WebsocketConfig struct {
