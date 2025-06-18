@@ -64,9 +64,10 @@ type AstronomyClient struct {
 }
 
 const (
-	MemoSunAzimuth = "SmartHomeExtensionSunAzimuth"
-	Latitude       = ""
-	Longitude      = ""
+	MemoSunAzimuth  = "SmartHomeExtensionSunAzimuth"
+	MemoSunAltitude = "SmartHomeExtensionSunAltitude"
+	Latitude        = "46.953774"
+	Longitude       = "7.259217"
 )
 
 func InitAstronomyClient(iBricksClient *IBricksClient, config *utils.Config) *AstronomyClient {
@@ -86,6 +87,7 @@ func (astronomyClient *AstronomyClient) StartUpdatingSunAzimuth(frequency int) {
 			} else {
 				logger.Trace("Successfully fetched astronomy info: %v", astronomyInfo)
 				astronomyClient.iBricksClient.SetMemo(MemoSunAzimuth, astronomyInfo.Astronomy.Sun_azimuth)
+				astronomyClient.iBricksClient.SetMemo(MemoSunAltitude, astronomyInfo.Astronomy.Sun_altitude)
 			}
 		}
 	}()
