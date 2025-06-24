@@ -55,9 +55,10 @@ type WindspeedConfig struct {
 }
 
 type KnxConfig struct {
-	InterfaceIP   string            `yaml:"interfaceIp"`
-	InterfacePort int               `yaml:"interfacePort"`
-	KnxDevices    []KnxDeviceConfig `yaml:"knxDevices"`
+	InterfaceIP             string            `yaml:"interfaceIp"`
+	InterfacePort           int               `yaml:"interfacePort"`
+	HealthCheckFrequencyMin int               `yaml:"healthCheckFrequencyMin"`
+	KnxDevices              []KnxDeviceConfig `yaml:"knxDevices"`
 }
 
 type KnxDeviceConfig struct {

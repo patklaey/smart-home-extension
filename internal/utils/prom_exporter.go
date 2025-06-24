@@ -16,11 +16,24 @@ type PromExporterGauges struct {
 	CurrentGauge          *prometheus.GaugeVec
 	ShellyTempGauge       *prometheus.GaugeVec
 	WifiSignalGauge       *prometheus.GaugeVec
+	ApplicationHealth     prometheus.Gauge
+	KnxInterfaceHealth    prometheus.Gauge
 }
 
 func InitPromExporter() PromExporterGauges {
 	gauges := PromExporterGauges{}
+
 	// Set prometheus vars
+	gauges.ApplicationHealth = promauto.NewGauge(prometheus.GaugeOpts{
+		Subsystem: "health",
+		Name:      "overall",
+		Help:      "The apps overall health indication",
+	})
+	gauges.KnxInterfaceHealth = promauto.NewGauge(prometheus.GaugeOpts{
+		Subsystem: "health",
+		Name:      "knx_interface",
+		Help:      "The apps KNX interface health indication",
+	})
 	gauges.WindspeedGauge = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "knx_weather_windspeed_kmh",
 		Help: "The current windspeed in km/h",

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	"home_automation/internal/clients"
 	"home_automation/internal/logger"
@@ -129,4 +130,22 @@ func processKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weat
 	} else {
 		logger.Trace("Destination %s not in destInfo map", msg.Destination)
 	}
+}
+
+func (knxInterface *KnxInterface) MonitorKnxHealth(frequency int, healthStatus *utils.HealthStatus) {
+
+	go func() {
+		// regularly check if message can be sent to bus
+		ticker := time.NewTicker(time.Minute * time.Duration(frequency))
+		for ; true; <-ticker.C {
+			err := knxInterface.KnxClient.SendMessageToKnx("1/0/5", []byte{})
+			if err != nil {
+				logger.Error("Failed to send message: %v. Setting health status to 0", err)
+				healthStatus.SetKnxHealthStatus(0)
+			} else {
+				healthStatus.SetKnxHealthStatus(1)
+			}
+		}
+	}()
+
 }

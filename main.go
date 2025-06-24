@@ -3,8 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strconv"
 
 	"home_automation/internal/clients"
 	"home_automation/internal/interfaces"
@@ -14,6 +16,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
+
+var healthStatus *utils.HealthStatus
 
 func main() {
 	var configFile string
@@ -28,6 +32,7 @@ func main() {
 
 	logger.InitLogger(config.LogLevel)
 	gauges := utils.InitPromExporter()
+	healthStatus = utils.InitHealthStatus(gauges)
 	iBricksClient := clients.InitIBricksClient(config)
 	pClient := clients.InitPromClient()
 	knxInterface := interfaces.InitAndConnectKnx(config)
@@ -44,10 +49,16 @@ func main() {
 	defer knxInterface.KnxClient.KnxTunnel.Close()
 
 	knxInterface.ListenToKNX(gauges, &weatherMonitor, shellyClient)
+	knxInterface.MonitorKnxHealth(config.Knx.HealthCheckFrequencyMin, healthStatus)
 	shellyClient.StartFetchShellyData(gauges, config.Shelly.ShellyPullFrequencySeconds)
 	weatherMonitor.StartFetchingMaxWindspeed(config.Weather.Windspeed.CheckAverageFrequency)
 	iBricksClient.StartSendingHeartbeat(config.IBricks.HeartbeatFrequency)
 	astronomyClient.StartUpdatingSunAzimuth(config.Ipgeolocation.FetchFrequency)
 	http.Handle(config.PromExporter.Path, promhttp.Handler())
+	http.HandleFunc("/health", getHealthStatus)
 	http.ListenAndServe(fmt.Sprintf(":%d", config.PromExporter.Port), nil)
+}
+
+func getHealthStatus(w http.ResponseWriter, r *http.Request) {
+	io.WriteString(w, strconv.Itoa(healthStatus.GetHealthStatus()))
 }
