@@ -33,12 +33,13 @@ const (
 )
 
 type KnxDevice struct {
-	Type          int
-	Name          string
-	Room          string
-	ValueType     int
-	KnxAddress    string
-	ShutterDevice ShutterDevice
+	Type             int
+	Name             string
+	Room             string
+	ValueType        int
+	KnxAddress       string
+	KnxReturnAddress string
+	ShutterDevice    ShutterDevice
 }
 
 type ShutterDevice struct {

@@ -80,14 +80,14 @@ type ShellyDeviceConfig struct {
 	DeviceBaseConfig `yaml:",inline"`
 	Ip               string `yaml:"ip"`
 	Index            int    `yaml:"index"`
-	KnxReturnAddress string `yaml:"knxReturnAddress"`
 }
 
 type DeviceBaseConfig struct {
-	KnxAddress string `yaml:"knxAddress"`
-	Type       string `yaml:"type"`
-	Name       string `yaml:"name"`
-	Room       string `yaml:"room"`
+	KnxAddress       string `yaml:"knxAddress"`
+	KnxReturnAddress string `yaml:"knxReturnAddress,omitempty"`
+	Type             string `yaml:"type"`
+	Name             string `yaml:"name"`
+	Room             string `yaml:"room"`
 }
 
 type PromExporter struct {
@@ -186,6 +186,8 @@ func (deviceConfig *KnxDeviceConfig) ToKnxDevice() (*models.KnxDevice, error) {
 		return nil, fmt.Errorf("unknown KnxDevice room '%s'", deviceConfig.Room)
 	}
 	device.Room = room
+
+	device.KnxReturnAddress = deviceConfig.KnxReturnAddress
 
 	return device, nil
 }

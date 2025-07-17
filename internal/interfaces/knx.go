@@ -30,6 +30,9 @@ func InitAndConnectKnx(config *utils.Config) *KnxInterface {
 			return nil
 		}
 		utils.KnxDevices[deviceConfig.KnxAddress] = device
+		if device.KnxReturnAddress != "" {
+			utils.KnxDevices[device.KnxReturnAddress] = device
+		}
 	}
 
 	for knxAddr, theShellyInfo := range utils.KnxShellyMap {
@@ -62,11 +65,13 @@ func (knxInterface *KnxInterface) ListenToKNX(gauges utils.PromExporterGauges, w
 
 func processKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weatherMonitor *monitors.WeatherMonitor, shellyClient *clients.ShellyClient) {
 	// Map the destinations adressess to the corresponding types
+	// For codes check https://www.promotic.eu/en/pmdoc/Subsystems/Comm/PmDrivers/PmKNX/KNXDTypes.htm
 	var temp dpt.DPT_9001
 	var windspeed dpt.DPT_9005
 	var lux dpt.DPT_9004
 	var indicator dpt.DPT_1002
 	var lightValue dpt.DPT_5001
+	var shutterValue dpt.DPT_5001
 	dest := msg.Destination.String()
 	logger.Trace("%+v", msg)
 	if knxDevice, found := utils.KnxDevices[dest]; found {
@@ -123,6 +128,14 @@ func processKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weat
 				logger.Debug("Ligh: %+v: %v", msg, lightValue)
 			} else {
 				logger.Error("Failed to unpack lightValue for %s: %v", msg.Destination, err)
+			}
+		case models.Shutter:
+			err := shutterValue.Unpack(msg.Data)
+			if err == nil {
+				logger.Debug("ShutterValue: %+v: %v", msg, shutterValue)
+				weatherMonitor.SetShutterPosition(knxDevice, float64(shutterValue))
+			} else {
+				logger.Error("Failed to unpack shutterValue for %s: %v", msg.Destination, err)
 			}
 		default:
 			logger.Warning("No type map for destination: %s", msg.Destination)

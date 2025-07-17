@@ -43,7 +43,26 @@ type WindStatus struct {
 	windShutterUpHighCheckActive bool
 }
 
+type shutter struct {
+	name      string
+	windClass int
+	position  float64
+}
+
+var shutters map[string]*shutter
+
 func InitWeatherMonitor(config *utils.Config, pClient *clients.PromClient, kClient *clients.KnxClient, iBricksClient *clients.IBricksClient) WeatherMonitor {
+	shutters = map[string]*shutter{}
+	for _, knxDevice := range utils.KnxDevices {
+		if knxDevice.Type == models.Actor && knxDevice.ValueType == models.Shutter {
+			// For starting asssume shutters are down
+			shutters[knxDevice.KnxAddress] = &shutter{
+				position:  100,
+				windClass: knxDevice.ShutterDevice.WindClass,
+				name:      knxDevice.Name,
+			}
+		}
+	}
 	return WeatherMonitor{
 		PromClient:           pClient,
 		KnxClient:            kClient,
@@ -58,6 +77,13 @@ func InitWeatherMonitor(config *utils.Config, pClient *clients.PromClient, kClie
 			windShutterUpHighCheckActive: true,
 		},
 	}
+}
+
+func (monitor *WeatherMonitor) SetShutterPosition(device *models.KnxDevice, position float64) {
+	// Set the shutter position for the given shutter
+	// Eventhough the report of the position is on the return address, we
+	// initialized the shutters map on the knx address
+	shutters[device.KnxAddress].position = position
 }
 
 func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
@@ -198,12 +224,16 @@ func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windWarning string) {
 func (monitor *WeatherMonitor) shutterUp(windClass int) error {
 	var lastError error
 	lastError = nil
-	for knxAddress, knxDevice := range utils.KnxDevices {
-		if knxDevice.Type == models.Actor && knxDevice.ValueType == models.Shutter && knxDevice.ShutterDevice.WindClass <= windClass {
-			err := monitor.KnxClient.SendMessageToKnx(knxAddress, dpt.DPT_1001(false).Pack())
-			if err != nil {
-				logger.Error("Failed to send shutterUp command for shutter %s (%s): %s\n", knxDevice.Name, knxAddress, err)
-				lastError = err
+	for knxAddress, shutterDevice := range shutters {
+		if shutterDevice.windClass <= windClass {
+			if shutterDevice.position != 0 {
+				err := monitor.KnxClient.SendMessageToKnx(knxAddress, dpt.DPT_1001(false).Pack())
+				if err != nil {
+					logger.Error("Failed to send shutterUp command for shutter %s (%s): %s\n", shutterDevice.name, knxAddress, err)
+					lastError = err
+				}
+			} else {
+				logger.Trace("Should retract shutter %s but is already up\n", shutterDevice.name)
 			}
 		}
 	}
