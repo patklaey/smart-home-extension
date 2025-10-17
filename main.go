@@ -60,5 +60,9 @@ func main() {
 }
 
 func getHealthStatus(w http.ResponseWriter, r *http.Request) {
+	healthStatusValue := healthStatus.GetHealthStatus()
+	if healthStatusValue != 1 {
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}
 	io.WriteString(w, strconv.Itoa(healthStatus.GetHealthStatus()))
 }
