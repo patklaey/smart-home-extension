@@ -33,6 +33,7 @@ type WeatherMonitor struct {
 	WindStatus           *WindStatus
 	KnxClient            *clients.KnxClient
 	IBrickClient         *clients.IBricksClient
+	MeteoClient          *clients.MeteoClient
 	windResetGracePeriod int
 }
 
@@ -45,11 +46,12 @@ type WindStatus struct {
 	windShutterUpHighCheckActive bool
 }
 
-func InitWeatherMonitor(config *utils.Config, pClient *clients.PromClient, kClient *clients.KnxClient, iBricksClient *clients.IBricksClient) WeatherMonitor {
-	return WeatherMonitor{
+func InitWeatherMonitor(config *utils.Config, pClient *clients.PromClient, kClient *clients.KnxClient, iBricksClient *clients.IBricksClient, meteoClient *clients.MeteoClient) *WeatherMonitor {
+	return &WeatherMonitor{
 		PromClient:           pClient,
 		KnxClient:            kClient,
 		IBrickClient:         iBricksClient,
+		MeteoClient:          meteoClient,
 		windResetGracePeriod: config.Weather.Windspeed.WindResetGracePeriod,
 		WindStatus: &WindStatus{
 			windShutterUpLowThreshold:    config.Weather.Windspeed.ShutteUpLowThreshold,
@@ -63,6 +65,9 @@ func InitWeatherMonitor(config *utils.Config, pClient *clients.PromClient, kClie
 }
 
 func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
+	windDirection := monitor.MeteoClient.GetWindDirection()
+	windspeed = windspeed * monitor.MeteoClient.GetWindDirectionFactor()
+	logger.Trace("Current wind direction is %d and assiciated wind factor is %.2f resulting wind windspeed %.2f", windDirection, monitor.MeteoClient.GetWindDirectionFactor(), windspeed)
 	switch {
 	case windspeed >= monitor.WindStatus.windShutterUpHighThreshold:
 		if monitor.WindStatus.windShutterUpHighCheckActive {
@@ -71,11 +76,6 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 				monitor.WindStatus.windShutterUpHighCheckActive = false
 				logger.Info("Shutters for high wind retracted")
 				monitor.setIBricksWindWarningMemo(WindWarningHigh)
-				if err != nil {
-					logger.Warning("High shutters retracted but failed to set %s memo on iBricks", MemoWindWarning)
-				} else {
-					logger.Debug("Memo %s on iBricks set successfully", MemoWindWarning)
-				}
 			} else {
 				logger.Warning("Some or all shutters could not be retracted (trigger high wind)")
 			}
@@ -89,11 +89,6 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 				monitor.WindStatus.windShutterUpMedCheckActive = false
 				logger.Info("Shutters for medium wind retracted")
 				monitor.setIBricksWindWarningMemo(WindWarningMedium)
-				if err != nil {
-					logger.Warning("Medium shutters retracted but failed to set %s memo on iBricks", MemoWindWarning)
-				} else {
-					logger.Debug("Memo %s on iBricks set successfully", MemoWindWarning)
-				}
 			} else {
 				logger.Warning("Some or all shutters could not be retracted (trigger medium wind)")
 			}
@@ -107,11 +102,6 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 				monitor.WindStatus.windShutterUpLowCheckActive = false
 				logger.Info("Shutters for low wind retracted")
 				monitor.setIBricksWindWarningMemo(WindWarningLow)
-				if err != nil {
-					logger.Warning("Low shutters retracted but failed to set %s memo on iBricks", MemoWindWarning)
-				} else {
-					logger.Debug("Memo %s on iBricks set successfully", MemoWindWarning)
-				}
 			} else {
 				logger.Warning("Some or all shutters could not be retracted (trigger low wind)")
 			}
@@ -146,6 +136,9 @@ func (monitor *WeatherMonitor) StartFetchingMaxWindspeed(frequency int) {
 }
 
 func (monitor *WeatherMonitor) checkReactivateShutterUp(maxWindpeed float64) {
+	windDirection := monitor.MeteoClient.GetWindDirection()
+	maxWindpeed = maxWindpeed * monitor.MeteoClient.GetWindDirectionFactor()
+	logger.Trace("Current wind direction is %d and assiciated wind factor is %.2f resulting max windspeed %.2f", windDirection, monitor.MeteoClient.GetWindDirectionFactor(), maxWindpeed)
 	switch {
 	case maxWindpeed <= monitor.WindStatus.windShutterUpLowThreshold*0.9:
 		logger.Trace("Windspeed %.2f lower than 90%% of low retraction threshold %.2f, reactivating all checks again", maxWindpeed, monitor.WindStatus.windShutterUpLowThreshold*0.9)
@@ -186,7 +179,7 @@ func (monitor *WeatherMonitor) checkReactivateShutterUp(maxWindpeed float64) {
 func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windWarning int) {
 	allowedWindWarnings := []int{WindWarningNone, WindWarningVeryLow, WindWarningLow, WindWarningMedium, WindWarningHigh, WindWarningVeryHigh}
 	if !slices.Contains(allowedWindWarnings, windWarning) {
-		logger.Error("Wind warning must be among the following values (got %s): %v. Not setting '%s' memo on iBricks", windWarning, allowedWindWarnings, MemoWindWarning)
+		logger.Error("Wind warning must be among the following values (got %d): %v. Not setting '%s' memo on iBricks", windWarning, allowedWindWarnings, MemoWindWarning)
 		return
 	}
 	err := monitor.IBrickClient.SetMemo(MemoWindWarning, windWarning)

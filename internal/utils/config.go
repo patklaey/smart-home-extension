@@ -9,6 +9,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var config Config
+
 type Config struct {
 	Weather       *WeatherConfig   `yaml:"weather"`
 	Knx           *KnxConfig       `yaml:"knx"`
@@ -43,15 +45,23 @@ type IBricksConfig struct {
 }
 
 type WeatherConfig struct {
-	Windspeed *WindspeedConfig `yaml:"windspeed"`
+	Location  *WeatherLocationConfig `yaml:"location"`
+	Windspeed *WindspeedConfig       `yaml:"windspeed"`
+}
+
+type WeatherLocationConfig struct {
+	Latitude  float64 `yaml:"latitude"`
+	Longitude float64 `yaml:"longitude"`
+	Timezone  string  `yaml:"timezone"`
 }
 
 type WindspeedConfig struct {
-	ShutteUpLowThreshold  float64 `yaml:"shutterUpLowThreshold"`
-	ShutteUpMedThreshold  float64 `yaml:"shutterUpMedThreshold"`
-	ShutteUpHighThreshold float64 `yaml:"shutterUpHighThreshold"`
-	CheckAverageFrequency int     `yaml:"checkAverageFrequencyMin"`
-	WindResetGracePeriod  int     `yaml:"windResetGracePeriodMin"`
+	ShutteUpLowThreshold    float64 `yaml:"shutterUpLowThreshold"`
+	ShutteUpMedThreshold    float64 `yaml:"shutterUpMedThreshold"`
+	ShutteUpHighThreshold   float64 `yaml:"shutterUpHighThreshold"`
+	CheckAverageFrequency   int     `yaml:"checkAverageFrequencyMin"`
+	WindResetGracePeriod    int     `yaml:"windResetGracePeriodMin"`
+	CheckDirectionFrequency int     `yaml:"checkDirectionFrequencyMin"`
 }
 
 type KnxConfig struct {
@@ -96,8 +106,6 @@ type PromExporter struct {
 }
 
 func LoadConfig(configFile string) *Config {
-	var config Config
-
 	yfile, err := os.ReadFile(configFile)
 	if err != nil {
 		fmt.Println("Could not read config file: ", err)
@@ -109,6 +117,10 @@ func LoadConfig(configFile string) *Config {
 		fmt.Println("Error loading configuration: ", err)
 		return nil
 	}
+	return &config
+}
+
+func GetConfig() *Config {
 	return &config
 }
 

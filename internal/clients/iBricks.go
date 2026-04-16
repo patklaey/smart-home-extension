@@ -10,10 +10,6 @@ import (
 	"github.com/carlmjohnson/requests"
 )
 
-const (
-	MemoHeartbeatTimestamp = "SmartHomeExtensionHeartbeat"
-)
-
 // type iBricksResponse struct {
 // 	Response *ResponseValues `xml:"Response"`
 // }

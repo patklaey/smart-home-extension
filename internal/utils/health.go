@@ -1,5 +1,7 @@
 package utils
 
+// TODO Implement proper health status where clients can report their health status
+
 type HealthStatus struct {
 	knxHealth int
 }

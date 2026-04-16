@@ -31,13 +31,15 @@ func main() {
 	}
 
 	logger.InitLogger(config.LogLevel)
+	clients.InitClientVars(config)
 	gauges := utils.InitPromExporter()
 	healthStatus = utils.InitHealthStatus(gauges)
 	iBricksClient := clients.InitIBricksClient(config)
 	pClient := clients.InitPromClient()
 	knxInterface := interfaces.InitAndConnectKnx(config)
+	meteoClient := clients.InitMeteoClient(iBricksClient)
 	shellyClient := clients.InitShelly(config, knxInterface.KnxClient, gauges)
-	weatherMonitor := monitors.InitWeatherMonitor(config, pClient, knxInterface.KnxClient, iBricksClient)
+	weatherMonitor := monitors.InitWeatherMonitor(config, pClient, knxInterface.KnxClient, iBricksClient, meteoClient)
 	astronomyClient := clients.InitAstronomyClient(iBricksClient, config)
 	interfaces.StartWebsocketServer(config, shellyClient)
 
@@ -48,10 +50,11 @@ func main() {
 
 	defer knxInterface.KnxClient.KnxTunnel.Close()
 
-	knxInterface.ListenToKNX(gauges, &weatherMonitor, shellyClient)
+	knxInterface.ListenToKNX(gauges, weatherMonitor, shellyClient)
 	knxInterface.MonitorKnxHealth(config.Knx.HealthCheckFrequencyMin, healthStatus)
 	shellyClient.StartFetchShellyData(gauges, config.Shelly.ShellyPullFrequencySeconds)
 	weatherMonitor.StartFetchingMaxWindspeed(config.Weather.Windspeed.CheckAverageFrequency)
+	meteoClient.StratFetchingWindStatus()
 	iBricksClient.StartSendingHeartbeat(config.IBricks.HeartbeatFrequency)
 	astronomyClient.StartUpdatingSunAzimuth(config.Ipgeolocation.FetchFrequency)
 	http.Handle(config.PromExporter.Path, promhttp.Handler())

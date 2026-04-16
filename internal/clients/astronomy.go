@@ -63,13 +63,6 @@ type AstronomyClient struct {
 	iBricksClient   *IBricksClient
 }
 
-const (
-	MemoSunAzimuth  = "SmartHomeExtensionSunAzimuth"
-	MemoSunAltitude = "SmartHomeExtensionSunAltitude"
-	Latitude        = "46.953774"
-	Longitude       = "7.259217"
-)
-
 func InitAstronomyClient(iBricksClient *IBricksClient, config *utils.Config) *AstronomyClient {
 	return &AstronomyClient{
 		iBricksClient:   iBricksClient,
@@ -98,8 +91,8 @@ func (astronomyClient *AstronomyClient) getAstronomyInfo() (*AstronomyResponse, 
 	requestUrl := "https://api.ipgeolocation.io/v2/astronomy"
 	reqBuilder := requests.URL(requestUrl).
 		Param("apiKey", astronomyClient.astronomyAPIKey).
-		Param("lat", Latitude).
-		Param("long", Longitude).
+		Param("lat", latitude).
+		Param("long", longitude).
 		Accept("application/json").
 		ToJSON(&response)
 	err := reqBuilder.Fetch(context.Background())
