@@ -1,4 +1,4 @@
-package interfaces
+package repositories
 
 import (
 	"fmt"
@@ -44,7 +44,7 @@ func InitAndConnectKnx(config *utils.Config) *KnxInterface {
 	knxConnectionAddr := fmt.Sprintf("%s:%d", config.Knx.InterfaceIP, config.Knx.InterfacePort)
 	tunnel, err := knx.NewGroupTunnel(knxConnectionAddr, knx.DefaultTunnelConfig)
 	if err != nil {
-		logger.Error(err.Error())
+		logger.Error("Failed to connect to KNX tunnel: %v", err)
 		return nil
 	}
 

@@ -2,6 +2,7 @@ package clients
 
 import (
 	"encoding/json"
+	"home_automation/internal/interfaces"
 	"home_automation/internal/logger"
 	"home_automation/internal/models"
 	"home_automation/internal/utils"
@@ -13,13 +14,13 @@ import (
 )
 
 type ShellyClient struct {
-	knxClient  *KnxClient
+	knxClient  interfaces.KnxClientInterface
 	promGauges utils.PromExporterGauges
 }
 
 var shellyDevices map[string]*models.ShellyDevice
 
-func InitShelly(config *utils.Config, knxClient *KnxClient, gauges utils.PromExporterGauges) *ShellyClient {
+func InitShelly(config *utils.Config, knxClient interfaces.KnxClientInterface, gauges utils.PromExporterGauges) *ShellyClient {
 	for _, deviceConfig := range config.Shelly.ShellyDevices {
 		device, err := deviceConfig.ToShellyDevice()
 		if err != nil {

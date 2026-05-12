@@ -2,7 +2,7 @@ package monitors
 
 import (
 	"fmt"
-	"home_automation/internal/clients"
+	"home_automation/internal/interfaces"
 	"home_automation/internal/logger"
 	"home_automation/internal/models"
 	"home_automation/internal/utils"
@@ -29,11 +29,11 @@ const (
 )
 
 type WeatherMonitor struct {
-	PromClient           *clients.PromClient
+	PromClient           interfaces.PromClientInterface
 	WindStatus           *WindStatus
-	KnxClient            *clients.KnxClient
-	IBrickClient         *clients.IBricksClient
-	MeteoClient          *clients.MeteoClient
+	KnxClient            interfaces.KnxClientInterface
+	IBrickClient         interfaces.IBricksClientInterface
+	MeteoClient          interfaces.MeteoClientInterface
 	windResetGracePeriod int
 }
 
@@ -46,7 +46,7 @@ type WindStatus struct {
 	windShutterUpHighCheckActive bool
 }
 
-func InitWeatherMonitor(config *utils.Config, pClient *clients.PromClient, kClient *clients.KnxClient, iBricksClient *clients.IBricksClient, meteoClient *clients.MeteoClient) *WeatherMonitor {
+func InitWeatherMonitor(config *utils.Config, pClient interfaces.PromClientInterface, kClient interfaces.KnxClientInterface, iBricksClient interfaces.IBricksClientInterface, meteoClient interfaces.MeteoClientInterface) *WeatherMonitor {
 	return &WeatherMonitor{
 		PromClient:           pClient,
 		KnxClient:            kClient,
@@ -66,8 +66,9 @@ func InitWeatherMonitor(config *utils.Config, pClient *clients.PromClient, kClie
 
 func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 	windDirection := monitor.MeteoClient.GetWindDirection()
-	windspeed = windspeed * monitor.MeteoClient.GetWindDirectionFactor()
-	logger.Trace("Current wind direction is %d and assiciated wind factor is %.2f resulting wind windspeed %.2f", windDirection, monitor.MeteoClient.GetWindDirectionFactor(), windspeed)
+	windDirectionFactor := monitor.MeteoClient.GetWindDirectionFactor()
+	windspeed = windspeed * windDirectionFactor
+	logger.Trace("Current wind direction is %d and assiciated wind factor is %.2f resulting wind windspeed %.2f", windDirection, windDirectionFactor, windspeed)
 	switch {
 	case windspeed >= monitor.WindStatus.windShutterUpHighThreshold:
 		if monitor.WindStatus.windShutterUpHighCheckActive {

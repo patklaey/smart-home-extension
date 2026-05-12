@@ -9,9 +9,9 @@ import (
 	"strconv"
 
 	"home_automation/internal/clients"
-	"home_automation/internal/interfaces"
 	"home_automation/internal/logger"
 	"home_automation/internal/monitors"
+	"home_automation/internal/repositories"
 	"home_automation/internal/utils"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -36,12 +36,12 @@ func main() {
 	healthStatus = utils.InitHealthStatus(gauges)
 	iBricksClient := clients.InitIBricksClient(config)
 	pClient := clients.InitPromClient()
-	knxInterface := interfaces.InitAndConnectKnx(config)
+	knxInterface := repositories.InitAndConnectKnx(config)
 	meteoClient := clients.InitMeteoClient(iBricksClient)
 	shellyClient := clients.InitShelly(config, knxInterface.KnxClient, gauges)
 	weatherMonitor := monitors.InitWeatherMonitor(config, pClient, knxInterface.KnxClient, iBricksClient, meteoClient)
 	astronomyClient := clients.InitAstronomyClient(iBricksClient, config)
-	interfaces.StartWebsocketServer(config, shellyClient)
+	repositories.StartWebsocketServer(config, shellyClient)
 
 	if knxInterface == nil {
 		logger.Error("Failed initializing knxClient, exiting")

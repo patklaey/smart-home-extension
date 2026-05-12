@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"home_automation/internal/interfaces"
 	"home_automation/internal/logger"
 	"home_automation/internal/utils"
 
@@ -60,10 +61,10 @@ type AstronomyResponse struct {
 
 type AstronomyClient struct {
 	astronomyAPIKey string
-	iBricksClient   *IBricksClient
+	iBricksClient   interfaces.IBricksClientInterface
 }
 
-func InitAstronomyClient(iBricksClient *IBricksClient, config *utils.Config) *AstronomyClient {
+func InitAstronomyClient(iBricksClient interfaces.IBricksClientInterface, config *utils.Config) *AstronomyClient {
 	return &AstronomyClient{
 		iBricksClient:   iBricksClient,
 		astronomyAPIKey: config.Ipgeolocation.ApiKey,

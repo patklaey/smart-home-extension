@@ -1,4 +1,4 @@
-package interfaces
+package repositories
 
 import (
 	"encoding/json"
@@ -39,7 +39,7 @@ func listen(conn *websocket.Conn) {
 		// read a message
 		_, messageContent, err := conn.ReadMessage()
 		if err != nil {
-			logger.Error(err.Error())
+			logger.Error("Error reading websocket message: %v", err)
 			return
 		}
 

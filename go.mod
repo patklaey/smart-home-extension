@@ -4,6 +4,7 @@ go 1.24.4
 
 require (
 	github.com/carlmjohnson/requests v0.25.1
+	github.com/golang/mock v1.6.0
 	github.com/gorilla/websocket v1.5.3
 	github.com/jcodybaker/go-shelly v0.0.0-20241223165431-08e0fec7cbb1
 	github.com/prometheus/client_golang v1.23.2
