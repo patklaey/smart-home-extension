@@ -1,12 +1,13 @@
 package monitors
 
 import (
+	"context"
 	"fmt"
 	"home_automation/internal/interfaces"
 	"home_automation/internal/logger"
 	"home_automation/internal/models"
 	"home_automation/internal/utils"
-	"slices"
+	"sync"
 	"time"
 
 	"github.com/vapourismo/knx-go/knx/dpt"
@@ -19,25 +20,21 @@ const (
 	MemoAllAusoSunBlindsDown = "AllAutoSunBlindsDown"
 	MemoWindWarning          = "SunBlindsWindWarning"
 
-	// WindWarnings
-	WindWarningNone     = 0
-	WindWarningVeryLow  = 1
-	WindWarningLow      = 2
-	WindWarningMedium   = 3
-	WindWarningHigh     = 4
-	WindWarningVeryHigh = 5
+	windHysteresisFactor = 0.9
 )
 
 type WeatherMonitor struct {
 	PromClient           interfaces.PromClientInterface
-	WindStatus           *WindStatus
+	windStatus           WindStatus
 	KnxClient            interfaces.KnxClientInterface
 	IBrickClient         interfaces.IBricksClientInterface
 	MeteoClient          interfaces.MeteoClientInterface
 	windResetGracePeriod int
+	knxDevices           map[string]*models.KnxDevice
 }
 
 type WindStatus struct {
+	mutex                        sync.RWMutex
 	windShutterUpLowThreshold    float64
 	windShutterUpMedThreshold    float64
 	windShutterUpHighThreshold   float64
@@ -46,17 +43,18 @@ type WindStatus struct {
 	windShutterUpHighCheckActive bool
 }
 
-func InitWeatherMonitor(config *utils.Config, pClient interfaces.PromClientInterface, kClient interfaces.KnxClientInterface, iBricksClient interfaces.IBricksClientInterface, meteoClient interfaces.MeteoClientInterface) *WeatherMonitor {
+func InitWeatherMonitor(config *utils.Config, knxDevices map[string]*models.KnxDevice, pClient interfaces.PromClientInterface, kClient interfaces.KnxClientInterface, iBricksClient interfaces.IBricksClientInterface, meteoClient interfaces.MeteoClientInterface) *WeatherMonitor {
 	return &WeatherMonitor{
 		PromClient:           pClient,
 		KnxClient:            kClient,
 		IBrickClient:         iBricksClient,
 		MeteoClient:          meteoClient,
 		windResetGracePeriod: config.Weather.Windspeed.WindResetGracePeriod,
-		WindStatus: &WindStatus{
-			windShutterUpLowThreshold:    config.Weather.Windspeed.ShutteUpLowThreshold,
-			windShutterUpMedThreshold:    config.Weather.Windspeed.ShutteUpMedThreshold,
-			windShutterUpHighThreshold:   config.Weather.Windspeed.ShutteUpHighThreshold,
+		knxDevices:           knxDevices,
+		windStatus: WindStatus{
+			windShutterUpLowThreshold:    config.Weather.Windspeed.ShutterUpLowThreshold,
+			windShutterUpMedThreshold:    config.Weather.Windspeed.ShutterUpMedThreshold,
+			windShutterUpHighThreshold:   config.Weather.Windspeed.ShutterUpHighThreshold,
 			windShutterUpLowCheckActive:  true,
 			windShutterUpMedCheckActive:  true,
 			windShutterUpHighCheckActive: true,
@@ -68,41 +66,43 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 	windDirection := monitor.MeteoClient.GetWindDirection()
 	windDirectionFactor := monitor.MeteoClient.GetWindDirectionFactor()
 	windspeed = windspeed * windDirectionFactor
-	logger.Trace("Current wind direction is %d and assiciated wind factor is %.2f resulting wind windspeed %.2f", windDirection, windDirectionFactor, windspeed)
+	logger.Trace("Current wind direction is %d and associated wind factor is %.2f resulting wind windspeed %.2f", windDirection, windDirectionFactor, windspeed)
+	monitor.windStatus.mutex.Lock()
+	defer monitor.windStatus.mutex.Unlock()
 	switch {
-	case windspeed >= monitor.WindStatus.windShutterUpHighThreshold:
-		if monitor.WindStatus.windShutterUpHighCheckActive {
-			err := monitor.shutterUp(models.WindClass{}.High())
+	case windspeed >= monitor.windStatus.windShutterUpHighThreshold:
+		if monitor.windStatus.windShutterUpHighCheckActive {
+			err := monitor.shutterUp(models.WindClassHigh)
 			if err == nil {
-				monitor.WindStatus.windShutterUpHighCheckActive = false
+				monitor.windStatus.windShutterUpHighCheckActive = false
 				logger.Info("Shutters for high wind retracted")
-				monitor.setIBricksWindWarningMemo(WindWarningHigh)
+				monitor.setIBricksWindWarningMemo(models.WindClassHigh)
 			} else {
 				logger.Warning("Some or all shutters could not be retracted (trigger high wind)")
 			}
 		} else {
 			logger.Trace("High shutter check deactivated, shutters already retracted")
 		}
-	case windspeed >= monitor.WindStatus.windShutterUpMedThreshold:
-		if monitor.WindStatus.windShutterUpMedCheckActive {
-			err := monitor.shutterUp(models.WindClass{}.Medium())
+	case windspeed >= monitor.windStatus.windShutterUpMedThreshold:
+		if monitor.windStatus.windShutterUpMedCheckActive {
+			err := monitor.shutterUp(models.WindClassMedium)
 			if err == nil {
-				monitor.WindStatus.windShutterUpMedCheckActive = false
+				monitor.windStatus.windShutterUpMedCheckActive = false
 				logger.Info("Shutters for medium wind retracted")
-				monitor.setIBricksWindWarningMemo(WindWarningMedium)
+				monitor.setIBricksWindWarningMemo(models.WindClassMedium)
 			} else {
 				logger.Warning("Some or all shutters could not be retracted (trigger medium wind)")
 			}
 		} else {
 			logger.Trace("Medium shutter check deactivated, shutters already retracted")
 		}
-	case windspeed >= monitor.WindStatus.windShutterUpLowThreshold:
-		if monitor.WindStatus.windShutterUpLowCheckActive {
-			err := monitor.shutterUp(models.WindClass{}.Low())
+	case windspeed >= monitor.windStatus.windShutterUpLowThreshold:
+		if monitor.windStatus.windShutterUpLowCheckActive {
+			err := monitor.shutterUp(models.WindClassLow)
 			if err == nil {
-				monitor.WindStatus.windShutterUpLowCheckActive = false
+				monitor.windStatus.windShutterUpLowCheckActive = false
 				logger.Info("Shutters for low wind retracted")
-				monitor.setIBricksWindWarningMemo(WindWarningLow)
+				monitor.setIBricksWindWarningMemo(models.WindClassLow)
 			} else {
 				logger.Warning("Some or all shutters could not be retracted (trigger low wind)")
 			}
@@ -112,75 +112,84 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 	}
 }
 
-func (monitor *WeatherMonitor) StartFetchingMaxWindspeed(frequency int) {
+func (monitor *WeatherMonitor) StartFetchingMaxWindspeed(ctx context.Context, frequency int) {
 	go func() {
-		for range time.Tick(time.Minute * time.Duration(frequency)) {
-			// Get max wind value for the last minutes
-			query := fmt.Sprintf("max_over_time(knx_weather_windspeed_kmh[%dm])", monitor.windResetGracePeriod)
-			values, err := monitor.PromClient.Query(query)
-			if err != nil {
-				logger.Error("Failed to query prometheus, retrying in %d minute(s)", frequency)
-				continue
-			}
-			switch len(values) {
-			case 0:
-				logger.Warning("Not received any result for max_over_time(knx_weather_windspeed_kmh[%dm]), retrying in %d minute(s)", monitor.windResetGracePeriod, frequency)
-			case 1:
-				logger.Debug("Max windspeed in the last %d minutes: %.2f", monitor.windResetGracePeriod, values[0])
-				monitor.checkReactivateShutterUp(values[0])
-			default:
-				logger.Warning("More than one result for max_over_time(knx_weather_windspeed_kmh[%dm]) received (expected just one) - using first one to continue: %v", monitor.windResetGracePeriod, values)
-				monitor.checkReactivateShutterUp(values[0])
+		ticker := time.NewTicker(time.Minute * time.Duration(frequency))
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				// Get max wind value for the last minutes
+				query := fmt.Sprintf("max_over_time(knx_weather_windspeed_kmh[%dm])", monitor.windResetGracePeriod)
+				values, err := monitor.PromClient.Query(query)
+				if err != nil {
+					logger.Error("Failed to query prometheus, retrying in %d minute(s)", frequency)
+					continue
+				}
+				switch len(values) {
+				case 0:
+					logger.Warning("Not received any result for max_over_time(knx_weather_windspeed_kmh[%dm]), retrying in %d minute(s)", monitor.windResetGracePeriod, frequency)
+				case 1:
+					logger.Debug("Max windspeed in the last %d minutes: %.2f", monitor.windResetGracePeriod, values[0])
+					monitor.checkReactivateShutterUp(values[0])
+				default:
+					logger.Warning("More than one result for max_over_time(knx_weather_windspeed_kmh[%dm]) received (expected just one) - using first one to continue: %v", monitor.windResetGracePeriod, values)
+					monitor.checkReactivateShutterUp(values[0])
+				}
+			case <-ctx.Done():
+				logger.Info("Stopping max windspeed fetching routine")
+				return
 			}
 		}
 	}()
 }
 
-func (monitor *WeatherMonitor) checkReactivateShutterUp(maxWindpeed float64) {
+func (monitor *WeatherMonitor) checkReactivateShutterUp(maxWindspeed float64) {
 	windDirection := monitor.MeteoClient.GetWindDirection()
-	maxWindpeed = maxWindpeed * monitor.MeteoClient.GetWindDirectionFactor()
-	logger.Trace("Current wind direction is %d and assiciated wind factor is %.2f resulting max windspeed %.2f", windDirection, monitor.MeteoClient.GetWindDirectionFactor(), maxWindpeed)
+	maxWindspeed = maxWindspeed * monitor.MeteoClient.GetWindDirectionFactor()
+	logger.Trace("Current wind direction is %d and associated wind factor is %.2f resulting max windspeed %.2f", windDirection, monitor.MeteoClient.GetWindDirectionFactor(), maxWindspeed)
+	monitor.windStatus.mutex.Lock()
+	defer monitor.windStatus.mutex.Unlock()
 	switch {
-	case maxWindpeed <= monitor.WindStatus.windShutterUpLowThreshold*0.9:
-		logger.Trace("Windspeed %.2f lower than 90%% of low retraction threshold %.2f, reactivating all checks again", maxWindpeed, monitor.WindStatus.windShutterUpLowThreshold*0.9)
-		if monitor.WindStatus.windShutterUpLowCheckActive && monitor.WindStatus.windShutterUpMedCheckActive && monitor.WindStatus.windShutterUpHighCheckActive {
+	case maxWindspeed <= monitor.windStatus.windShutterUpLowThreshold*windHysteresisFactor:
+		logger.Trace("Windspeed %.2f lower than 90%% of low retraction threshold %.2f, reactivating all checks again", maxWindspeed, monitor.windStatus.windShutterUpLowThreshold*windHysteresisFactor)
+		if monitor.windStatus.windShutterUpLowCheckActive && monitor.windStatus.windShutterUpMedCheckActive && monitor.windStatus.windShutterUpHighCheckActive {
 			logger.Trace("All shutter up checks active, nothing to reactivate")
 			return
 		} else {
-			monitor.WindStatus.windShutterUpLowCheckActive = true
-			monitor.WindStatus.windShutterUpMedCheckActive = true
-			monitor.WindStatus.windShutterUpHighCheckActive = true
+			monitor.windStatus.windShutterUpLowCheckActive = true
+			monitor.windStatus.windShutterUpMedCheckActive = true
+			monitor.windStatus.windShutterUpHighCheckActive = true
 			logger.Debug("All shutter up checks reactivated")
-			monitor.setIBricksWindWarningMemo(WindWarningNone)
+			monitor.setIBricksWindWarningMemo(models.WindClassNone)
 		}
-	case maxWindpeed <= monitor.WindStatus.windShutterUpMedThreshold*0.9:
-		logger.Trace("Windspeed %.2f lower than 90%% of medium retraction threshold %.2f, reactivating high and medium checks again", maxWindpeed, monitor.WindStatus.windShutterUpMedThreshold*0.9)
-		if monitor.WindStatus.windShutterUpMedCheckActive && monitor.WindStatus.windShutterUpHighCheckActive {
+	case maxWindspeed <= monitor.windStatus.windShutterUpMedThreshold*windHysteresisFactor:
+		logger.Trace("Windspeed %.2f lower than 90%% of medium retraction threshold %.2f, reactivating high and medium checks again", maxWindspeed, monitor.windStatus.windShutterUpMedThreshold*windHysteresisFactor)
+		if monitor.windStatus.windShutterUpMedCheckActive && monitor.windStatus.windShutterUpHighCheckActive {
 			logger.Trace("Medium and high shutter up checks active, nothing to reactivate")
 			return
 		} else {
-			monitor.WindStatus.windShutterUpMedCheckActive = true
-			monitor.WindStatus.windShutterUpHighCheckActive = true
+			monitor.windStatus.windShutterUpMedCheckActive = true
+			monitor.windStatus.windShutterUpHighCheckActive = true
 			logger.Debug("High and medium shutter up checks reactivated")
-			monitor.setIBricksWindWarningMemo(WindWarningLow)
+			monitor.setIBricksWindWarningMemo(models.WindClassLow)
 		}
-	case maxWindpeed <= monitor.WindStatus.windShutterUpHighThreshold*0.9:
-		logger.Trace("Windspeed %.2f lower than 90%% of high retraction threshold %.2f, reactivating high checks again", maxWindpeed, monitor.WindStatus.windShutterUpHighThreshold*0.9)
-		if monitor.WindStatus.windShutterUpMedCheckActive && monitor.WindStatus.windShutterUpHighCheckActive {
+	case maxWindspeed <= monitor.windStatus.windShutterUpHighThreshold*windHysteresisFactor:
+		logger.Trace("Windspeed %.2f lower than 90%% of high retraction threshold %.2f, reactivating high checks again", maxWindspeed, monitor.windStatus.windShutterUpHighThreshold*windHysteresisFactor)
+		if monitor.windStatus.windShutterUpHighCheckActive {
 			logger.Trace("High shutter up checks active, nothing to reactivate")
 			return
 		} else {
-			monitor.WindStatus.windShutterUpHighCheckActive = true
+			monitor.windStatus.windShutterUpHighCheckActive = true
 			logger.Debug("High shutter up checks reactivated")
-			monitor.setIBricksWindWarningMemo(WindWarningMedium)
+			monitor.setIBricksWindWarningMemo(models.WindClassMedium)
 		}
 	}
 }
 
-func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windWarning int) {
-	allowedWindWarnings := []int{WindWarningNone, WindWarningVeryLow, WindWarningLow, WindWarningMedium, WindWarningHigh, WindWarningVeryHigh}
-	if !slices.Contains(allowedWindWarnings, windWarning) {
-		logger.Error("Wind warning must be among the following values (got %d): %v. Not setting '%s' memo on iBricks", windWarning, allowedWindWarnings, MemoWindWarning)
+func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windWarning models.WindClass) {
+	if windWarning < models.WindClassNone || windWarning > models.WindClassVeryHigh {
+		logger.Error("Wind warning must be between 0 and 5 (got %d). Not setting '%s' memo on iBricks", windWarning, MemoWindWarning)
 		return
 	}
 	err := monitor.IBrickClient.SetMemo(MemoWindWarning, windWarning)
@@ -191,10 +200,9 @@ func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windWarning int) {
 	}
 }
 
-func (monitor *WeatherMonitor) shutterUp(windClass int) error {
+func (monitor *WeatherMonitor) shutterUp(windClass models.WindClass) error {
 	var lastError error
-	lastError = nil
-	for knxAddress, knxDevice := range utils.KnxDevices {
+	for knxAddress, knxDevice := range monitor.knxDevices {
 		if knxDevice.Type == models.Actor && knxDevice.ValueType == models.Shutter && knxDevice.ShutterDevice.WindClass <= windClass {
 			err := monitor.KnxClient.SendMessageToKnx(knxAddress, dpt.DPT_1001(false).Pack())
 			if err != nil {

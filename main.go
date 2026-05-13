@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -39,7 +40,7 @@ func main() {
 	knxInterface := repositories.InitAndConnectKnx(config)
 	meteoClient := clients.InitMeteoClient(iBricksClient)
 	shellyClient := clients.InitShelly(config, knxInterface.KnxClient, gauges)
-	weatherMonitor := monitors.InitWeatherMonitor(config, pClient, knxInterface.KnxClient, iBricksClient, meteoClient)
+	weatherMonitor := monitors.InitWeatherMonitor(config, utils.KnxDevices, pClient, knxInterface.KnxClient, iBricksClient, meteoClient)
 	astronomyClient := clients.InitAstronomyClient(iBricksClient, config)
 	repositories.StartWebsocketServer(config, shellyClient)
 
@@ -53,7 +54,7 @@ func main() {
 	knxInterface.ListenToKNX(gauges, weatherMonitor, shellyClient)
 	knxInterface.MonitorKnxHealth(config.Knx.HealthCheckFrequencyMin, healthStatus)
 	shellyClient.StartFetchShellyData(gauges, config.Shelly.ShellyPullFrequencySeconds)
-	weatherMonitor.StartFetchingMaxWindspeed(config.Weather.Windspeed.CheckAverageFrequency)
+	weatherMonitor.StartFetchingMaxWindspeed(context.Background(), config.Weather.Windspeed.CheckAverageFrequency)
 	meteoClient.StratFetchingWindStatus()
 	iBricksClient.StartSendingHeartbeat(config.IBricks.HeartbeatFrequency)
 	astronomyClient.StartUpdatingSunAzimuth(config.Ipgeolocation.FetchFrequency)

@@ -56,9 +56,9 @@ type WeatherLocationConfig struct {
 }
 
 type WindspeedConfig struct {
-	ShutteUpLowThreshold    float64 `yaml:"shutterUpLowThreshold"`
-	ShutteUpMedThreshold    float64 `yaml:"shutterUpMedThreshold"`
-	ShutteUpHighThreshold   float64 `yaml:"shutterUpHighThreshold"`
+	ShutterUpLowThreshold   float64 `yaml:"shutterUpLowThreshold"`
+	ShutterUpMedThreshold   float64 `yaml:"shutterUpMedThreshold"`
+	ShutterUpHighThreshold  float64 `yaml:"shutterUpHighThreshold"`
 	CheckAverageFrequency   int     `yaml:"checkAverageFrequencyMin"`
 	WindResetGracePeriod    int     `yaml:"windResetGracePeriodMin"`
 	CheckDirectionFrequency int     `yaml:"checkDirectionFrequencyMin"`
@@ -174,16 +174,16 @@ func (deviceConfig *KnxDeviceConfig) ToKnxDevice() (*models.KnxDevice, error) {
 		device.ValueType = models.Indicator
 	case "shutter":
 		device.ValueType = models.Shutter
-		var windClass int
+		var windClass models.WindClass
 		switch strings.ToLower(deviceConfig.TypeConfig.WindClass) {
 		case "low":
-			windClass = models.WindClass{}.Low()
+			windClass = models.WindClassLow
 		case "medium":
-			windClass = models.WindClass{}.Medium()
+			windClass = models.WindClassMedium
 		case "high":
-			windClass = models.WindClass{}.High()
+			windClass = models.WindClassHigh
 		default:
-			windClass = models.WindClass{}.Low()
+			windClass = models.WindClassLow
 			fmt.Printf("Warning: wind class %s not defined, falling back to 'low' for shutter %s", deviceConfig.TypeConfig.WindClass, deviceConfig.Name)
 		}
 		device.ShutterDevice = models.ShutterDevice{
