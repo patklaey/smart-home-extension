@@ -39,8 +39,8 @@ func main() {
 	pClient := clients.InitPromClient()
 	knxInterface := repositories.InitAndConnectKnx(config)
 	meteoClient := clients.InitMeteoClient(iBricksClient)
-	shellyClient := clients.InitShelly(config, knxInterface.KnxClient, gauges)
-	weatherMonitor := monitors.InitWeatherMonitor(config, utils.KnxDevices, pClient, knxInterface.KnxClient, iBricksClient, meteoClient)
+	shellyClient := clients.InitShelly(config, knxInterface.KnxClient, gauges, knxInterface.KnxDevices)
+	weatherMonitor := monitors.InitWeatherMonitor(config, knxInterface.KnxDevices, pClient, knxInterface.KnxClient, iBricksClient, meteoClient)
 	astronomyClient := clients.InitAstronomyClient(iBricksClient, config)
 	repositories.StartWebsocketServer(config, shellyClient)
 

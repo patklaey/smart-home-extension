@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"home_automation/internal/clients"
+	"home_automation/internal/interfaces"
 	"home_automation/internal/logger"
 	"home_automation/internal/models"
-	"home_automation/internal/monitors"
 	"home_automation/internal/utils"
 
 	"github.com/vapourismo/knx-go/knx"
@@ -18,22 +18,24 @@ import (
 )
 
 type KnxInterface struct {
-	KnxTunnel knx.GroupTunnel
-	KnxClient *clients.KnxClient
+	KnxTunnel  knx.GroupTunnel
+	KnxClient  *clients.KnxClient
+	KnxDevices map[string]*models.KnxDevice
 }
 
 func InitAndConnectKnx(config *utils.Config) *KnxInterface {
+	devices := make(map[string]*models.KnxDevice)
 	for _, deviceConfig := range config.Knx.KnxDevices {
 		device, err := deviceConfig.ToKnxDevice()
 		if err != nil {
 			logger.Error("Failed creating knxDevice %s from config: %s\n", deviceConfig.KnxAddress, err)
 			return nil
 		}
-		utils.KnxDevices[deviceConfig.KnxAddress] = device
+		devices[deviceConfig.KnxAddress] = device
 	}
 
 	for knxAddr, theShellyInfo := range utils.KnxShellyMap {
-		utils.KnxDevices[knxAddr] = &models.KnxDevice{Type: models.Actor, Name: theShellyInfo.Name, Room: theShellyInfo.Room, ValueType: models.Shelly}
+		devices[knxAddr] = &models.KnxDevice{Type: models.Actor, Name: theShellyInfo.Name, Room: theShellyInfo.Room, ValueType: models.Shelly}
 	}
 
 	// Setup logger for auxiliary logging. This enables us to see log messages from internal
@@ -48,19 +50,19 @@ func InitAndConnectKnx(config *utils.Config) *KnxInterface {
 		return nil
 	}
 
-	return &KnxInterface{KnxTunnel: tunnel, KnxClient: &clients.KnxClient{KnxTunnel: tunnel}}
+	return &KnxInterface{KnxTunnel: tunnel, KnxClient: &clients.KnxClient{KnxTunnel: tunnel}, KnxDevices: devices}
 }
 
-func (knxInterface *KnxInterface) ListenToKNX(gauges utils.PromExporterGauges, weatherMonitor *monitors.WeatherMonitor, shellyClient *clients.ShellyClient) {
+func (knxInterface *KnxInterface) ListenToKNX(gauges utils.PromExporterGauges, weatherMonitor interfaces.WeatherMonitorInterface, shellyClient interfaces.ShellyClientInterface) {
 	go func() {
 		// Receive messages from the gateway. The inbound channel is closed with the connection.
 		for msg := range knxInterface.KnxTunnel.Inbound() {
-			processKNXMessage(msg, gauges, weatherMonitor, shellyClient)
+			knxInterface.processKNXMessage(msg, gauges, weatherMonitor, shellyClient)
 		}
 	}()
 }
 
-func processKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weatherMonitor *monitors.WeatherMonitor, shellyClient *clients.ShellyClient) {
+func (knxInterface *KnxInterface) processKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weatherMonitor interfaces.WeatherMonitorInterface, shellyClient interfaces.ShellyClientInterface) {
 	// Map the destinations adressess to the corresponding types
 	var temp dpt.DPT_9001
 	var windspeed dpt.DPT_9005
@@ -69,7 +71,7 @@ func processKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weat
 	var lightValue dpt.DPT_5001
 	dest := msg.Destination.String()
 	logger.Trace("%+v", msg)
-	if knxDevice, found := utils.KnxDevices[dest]; found {
+	if knxDevice, found := knxInterface.KnxDevices[dest]; found {
 		switch knxDevice.ValueType {
 		case models.Temperatur:
 			err := temp.Unpack(msg.Data)

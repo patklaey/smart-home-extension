@@ -16,11 +16,12 @@ import (
 type ShellyClient struct {
 	knxClient  interfaces.KnxClientInterface
 	promGauges utils.PromExporterGauges
+	knxDevices map[string]*models.KnxDevice
 }
 
 var shellyDevices map[string]*models.ShellyDevice
 
-func InitShelly(config *utils.Config, knxClient interfaces.KnxClientInterface, gauges utils.PromExporterGauges) *ShellyClient {
+func InitShelly(config *utils.Config, knxClient interfaces.KnxClientInterface, gauges utils.PromExporterGauges, devices map[string]*models.KnxDevice) *ShellyClient {
 	for _, deviceConfig := range config.Shelly.ShellyDevices {
 		device, err := deviceConfig.ToShellyDevice()
 		if err != nil {
@@ -28,9 +29,9 @@ func InitShelly(config *utils.Config, knxClient interfaces.KnxClientInterface, g
 			continue
 		}
 		utils.KnxShellyMap[deviceConfig.KnxAddress] = device
-		utils.KnxDevices[device.KnxAddress] = &models.KnxDevice{Type: models.Actor, Name: device.Name, Room: device.Room, ValueType: models.Shelly}
+		devices[device.KnxAddress] = &models.KnxDevice{Type: models.Actor, Name: device.Name, Room: device.Room, ValueType: models.Shelly}
 	}
-	return &ShellyClient{knxClient: knxClient, promGauges: gauges}
+	return &ShellyClient{knxClient: knxClient, promGauges: gauges, knxDevices: devices}
 }
 
 func (shellyClient *ShellyClient) HandleKnxMessage(knxAddr string, msg knx.GroupEvent) {
@@ -104,7 +105,7 @@ func (shellyClient *ShellyClient) HandleFullStatusMessageMessage(message *models
 }
 
 func (shellyClient *ShellyClient) handleHTStatusUpdate(message *models.ShellyStatusUpdate, lastError error) error {
-	for knxAddress, device := range utils.KnxDevices {
+	for knxAddress, device := range shellyClient.knxDevices {
 		if device.Name == "Shelly H&T" {
 			if device.ValueType == models.Temperatur {
 				logger.Debug("Found shelly h&t temperature device with knxAdress: %s", knxAddress)
