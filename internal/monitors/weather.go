@@ -17,7 +17,7 @@ import (
 
 const (
 	// IBrick Memo Names
-	MemoAllAusoSunBlindsDown = "AllAutoSunBlindsDown"
+	MemoAllAutoSunBlindsDown = "AllAutoSunBlindsDown"
 	MemoWindWarning          = "SunBlindsWindWarning"
 
 	windHysteresisFactor = 0.9
@@ -213,11 +213,11 @@ func (monitor *WeatherMonitor) shutterUp(windClass models.WindClass) error {
 	}
 
 	// Set memo in bricks that some shutters are retracted now
-	err := monitor.IBrickClient.SetMemo(MemoAllAusoSunBlindsDown, 0)
+	err := monitor.IBrickClient.SetMemo(MemoAllAutoSunBlindsDown, 0)
 	if err != nil {
-		logger.Warning("Could not set memo '%s' to 0 on iBricks - automatic extension of shutters might be impacted", MemoAllAusoSunBlindsDown)
+		logger.Warning("Could not set memo '%s' to 0 on iBricks - automatic extension of shutters might be impacted", MemoAllAutoSunBlindsDown)
 	} else {
-		logger.Debug("Memo '%s' on iBricks set successfully to 0", MemoAllAusoSunBlindsDown)
+		logger.Debug("Memo '%s' on iBricks set successfully to 0", MemoAllAutoSunBlindsDown)
 	}
 
 	return lastError
