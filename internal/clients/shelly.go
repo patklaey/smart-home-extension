@@ -22,18 +22,18 @@ type ShellyClient struct {
 	promGauges    utils.PromExporterGauges
 	knxDevices    map[string]*models.KnxDevice
 	shellyDevices map[string]*models.ShellyDevice // was a package-level global
-	shellyMap     map[string]*models.ShellyDevice // was utils.KnxShellyMap global
+	knxShellyMap  map[string]*models.ShellyDevice // was utils.KnxShellyMap global
 }
 
 func InitShelly(config *utils.Config, knxClient interfaces.KnxClientInterface, gauges utils.PromExporterGauges, devices map[string]*models.KnxDevice) *ShellyClient {
-	shellyMap := make(map[string]*models.ShellyDevice)
+	knxShellyMap := make(map[string]*models.ShellyDevice)
 	for _, deviceConfig := range config.Shelly.ShellyDevices {
 		device, err := deviceConfig.ToShellyDevice()
 		if err != nil {
 			logger.Warning("Failed creating shelly device %s from config: %s\n", deviceConfig.Ip, err)
 			continue
 		}
-		shellyMap[deviceConfig.KnxAddress] = device
+		knxShellyMap[deviceConfig.KnxAddress] = device
 		devices[device.KnxAddress] = &models.KnxDevice{
 			Type:      models.Actor,
 			Name:      device.Name,
@@ -46,13 +46,13 @@ func InitShelly(config *utils.Config, knxClient interfaces.KnxClientInterface, g
 		promGauges:    gauges,
 		knxDevices:    devices,
 		shellyDevices: make(map[string]*models.ShellyDevice),
-		shellyMap:     shellyMap,
+		knxShellyMap:  knxShellyMap,
 	}
 }
 
 func (shellyClient *ShellyClient) HandleKnxMessage(knxAddr string, msg knx.GroupEvent) {
 	// Use injected shellyMap instead of utils.KnxShellyMap global
-	shellyDevice, found := shellyClient.shellyMap[knxAddr]
+	shellyDevice, found := shellyClient.knxShellyMap[knxAddr]
 	if !found {
 		logger.Warning("No shelly device found for KNX address %s, ignoring message", knxAddr)
 		return
@@ -160,7 +160,7 @@ func (shellyClient *ShellyClient) StartFetchShellyData(ctx context.Context, gaug
 			case <-ticker.C:
 				logger.Trace("Getting status for all shelly devices")
 				// Use injected shellyMap instead of utils.KnxShellyMap global
-				for knxAddr, shellyDevice := range shellyClient.shellyMap {
+				for knxAddr, shellyDevice := range shellyClient.knxShellyMap {
 					shellyStatusResponse, err := shellyClient.GetStatus(shellyDevice)
 					if err != nil {
 						logger.Warning("Failed getting status from shelly, skipping device %s", shellyDevice.Name)
@@ -248,7 +248,7 @@ func (shellyClient *ShellyClient) getShellyDeviceBySource(source string, deviceI
 	if device, found := shellyClient.shellyDevices[source]; found {
 		return device
 	}
-	for _, knxShellyDevice := range shellyClient.shellyMap {
+	for _, knxShellyDevice := range shellyClient.knxShellyMap {
 		if knxShellyDevice.Ip == deviceIp {
 			shellyClient.shellyDevices[source] = knxShellyDevice
 			return knxShellyDevice

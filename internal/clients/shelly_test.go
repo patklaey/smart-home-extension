@@ -57,7 +57,7 @@ func newShellyClient(
 		promGauges:    gauges,
 		knxDevices:    knxDevices,
 		shellyDevices: make(map[string]*models.ShellyDevice),
-		shellyMap:     shellyMap,
+		knxShellyMap:  shellyMap,
 	}
 }
 
