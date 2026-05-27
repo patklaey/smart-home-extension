@@ -1,6 +1,7 @@
 package interfaces
 
 import (
+	"context"
 	"home_automation/internal/models"
 	"home_automation/internal/utils"
 
@@ -29,7 +30,9 @@ type KnxClientInterface interface {
 type ShellyClientInterface interface {
 	HandleKnxMessage(knxAddr string, msg knx.GroupEvent)
 	HandleFullStatusMessageMessage(message *models.ShellyStatusUpdate) error
-	StartFetchShellyData(gauges utils.PromExporterGauges, frequency int)
+	StartFetchShellyData(ctx context.Context, gauges utils.PromExporterGauges, frequency int)
 	HandleWebSocketMessage(messageContent []byte) error
 	HandleStatusMessage(message *models.ShellyStatusUpdate) error
+	GetStatus(actor *models.ShellyDevice) (*models.ShellyGetStatusResponse, error)
+	SetRelaisValue(actor *models.ShellyDevice, value bool) (int, error)
 }

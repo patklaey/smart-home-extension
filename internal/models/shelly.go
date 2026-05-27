@@ -1,13 +1,6 @@
 package models
 
 import (
-	"context"
-	"fmt"
-	"home_automation/internal/logger"
-	"net/http"
-	"time"
-
-	"github.com/carlmjohnson/requests"
 	goShelly "github.com/jcodybaker/go-shelly"
 )
 
@@ -46,7 +39,7 @@ type PM1 struct {
 	AEnergy    *goShelly.EnergyCounters `json:"aenergy,omitempty"`
 	RetAEnergy *goShelly.EnergyCounters `json:"ret_aenergy,omitempty"`
 }
-type shellyRelaisActionResponse struct {
+type ShellyRelaisActionResponse struct {
 	IsOn           bool    `json:"ison"`
 	HasTimer       bool    `json:"has_timer"`
 	TimerStartedAt int     `json:"timer_started_at"`
@@ -101,54 +94,4 @@ type ShellyDevicePower struct {
 	External struct {
 		Present bool `json:"present"`
 	} `json:"external"`
-}
-
-func (actor *ShellyDevice) GetStatus() (*ShellyGetStatusResponse, error) {
-	var response ShellyGetStatusResponse
-	logger.Trace("Get status for shelly device %s", actor.Name)
-	requestUrl := fmt.Sprintf("http://%s/rpc/Shelly.GetStatus", actor.Ip)
-
-	// Create a client with a short timeout in case some devices are not reachable
-	httpClient := http.Client{Timeout: 5 * time.Second}
-
-	err := requests.
-		URL(requestUrl).
-		Client(&httpClient).
-		ToJSON(&response).
-		Fetch(context.Background())
-
-	if err != nil {
-		logger.Error("Failed to get status for shelly device %s (%s): %s", actor.Name, actor.Ip, err)
-		return nil, err
-	}
-	return &response, nil
-}
-
-func (actor *ShellyDevice) SetRelaisValue(value bool) (int, error) {
-	requestUrl := fmt.Sprintf("http://%s/relay/%d", actor.Ip, actor.Index)
-	var response shellyRelaisActionResponse
-	reqBuilder := requests.URL(requestUrl).ToJSON(&response)
-	if value == true {
-		reqBuilder.Param("turn", "on")
-	} else {
-		reqBuilder.Param("turn", "off")
-	}
-	err := reqBuilder.Fetch(context.Background())
-	if err != nil {
-		logger.Error("Failed to set relais status for shelly device %s (%s): %s", actor.Name, actor.Ip, err)
-		return -1, err
-	}
-
-	if value != response.IsOn {
-		return -1, fmt.Errorf("response of the switch %s (%t) does not match requested state (%t)", actor.Name, response.IsOn, value)
-
-	}
-	return btoi(response.IsOn), nil
-}
-
-func btoi(boolean bool) int {
-	if boolean {
-		return 1
-	}
-	return 0
 }

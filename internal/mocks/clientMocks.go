@@ -5,6 +5,7 @@
 package mock_interfaces
 
 import (
+	context "context"
 	models "home_automation/internal/models"
 	utils "home_automation/internal/utils"
 	reflect "reflect"
@@ -223,6 +224,21 @@ func (m *MockShellyClientInterface) EXPECT() *MockShellyClientInterfaceMockRecor
 	return m.recorder
 }
 
+// GetStatus mocks base method.
+func (m *MockShellyClientInterface) GetStatus(actor *models.ShellyDevice) (*models.ShellyGetStatusResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetStatus", actor)
+	ret0, _ := ret[0].(*models.ShellyGetStatusResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetStatus indicates an expected call of GetStatus.
+func (mr *MockShellyClientInterfaceMockRecorder) GetStatus(actor interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatus", reflect.TypeOf((*MockShellyClientInterface)(nil).GetStatus), actor)
+}
+
 // HandleFullStatusMessageMessage mocks base method.
 func (m *MockShellyClientInterface) HandleFullStatusMessageMessage(message *models.ShellyStatusUpdate) error {
 	m.ctrl.T.Helper()
@@ -277,14 +293,29 @@ func (mr *MockShellyClientInterfaceMockRecorder) HandleWebSocketMessage(messageC
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HandleWebSocketMessage", reflect.TypeOf((*MockShellyClientInterface)(nil).HandleWebSocketMessage), messageContent)
 }
 
-// StartFetchShellyData mocks base method.
-func (m *MockShellyClientInterface) StartFetchShellyData(gauges utils.PromExporterGauges, frequency int) {
+// SetRelaisValue mocks base method.
+func (m *MockShellyClientInterface) SetRelaisValue(actor *models.ShellyDevice, value bool) (int, error) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "StartFetchShellyData", gauges, frequency)
+	ret := m.ctrl.Call(m, "SetRelaisValue", actor, value)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetRelaisValue indicates an expected call of SetRelaisValue.
+func (mr *MockShellyClientInterfaceMockRecorder) SetRelaisValue(actor, value interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRelaisValue", reflect.TypeOf((*MockShellyClientInterface)(nil).SetRelaisValue), actor, value)
+}
+
+// StartFetchShellyData mocks base method.
+func (m *MockShellyClientInterface) StartFetchShellyData(ctx context.Context, gauges utils.PromExporterGauges, frequency int) {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "StartFetchShellyData", ctx, gauges, frequency)
 }
 
 // StartFetchShellyData indicates an expected call of StartFetchShellyData.
-func (mr *MockShellyClientInterfaceMockRecorder) StartFetchShellyData(gauges, frequency interface{}) *gomock.Call {
+func (mr *MockShellyClientInterfaceMockRecorder) StartFetchShellyData(ctx, gauges, frequency interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartFetchShellyData", reflect.TypeOf((*MockShellyClientInterface)(nil).StartFetchShellyData), gauges, frequency)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartFetchShellyData", reflect.TypeOf((*MockShellyClientInterface)(nil).StartFetchShellyData), ctx, gauges, frequency)
 }

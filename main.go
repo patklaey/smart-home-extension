@@ -53,7 +53,7 @@ func main() {
 
 	knxInterface.ListenToKNX(gauges, weatherMonitor, shellyClient)
 	knxInterface.MonitorKnxHealth(config.Knx.HealthCheckFrequencyMin, healthStatus)
-	shellyClient.StartFetchShellyData(gauges, config.Shelly.ShellyPullFrequencySeconds)
+	shellyClient.StartFetchShellyData(context.Background(), gauges, config.Shelly.ShellyPullFrequencySeconds)
 	weatherMonitor.StartFetchingMaxWindspeed(context.Background(), config.Weather.Windspeed.CheckAverageFrequency)
 	meteoClient.StratFetchingWindStatus()
 	iBricksClient.StartSendingHeartbeat(config.IBricks.HeartbeatFrequency)
