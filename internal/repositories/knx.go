@@ -34,10 +34,6 @@ func InitAndConnectKnx(config *utils.Config) *KnxInterface {
 		devices[deviceConfig.KnxAddress] = device
 	}
 
-	for knxAddr, theShellyInfo := range utils.KnxShellyMap {
-		devices[knxAddr] = &models.KnxDevice{Type: models.Actor, Name: theShellyInfo.Name, Room: theShellyInfo.Room, ValueType: models.Shelly}
-	}
-
 	// Setup logger for auxiliary logging. This enables us to see log messages from internal
 	// routines.
 	util.Logger = log.New(os.Stdout, "", log.LstdFlags)
