@@ -1,5 +1,7 @@
 package models
 
+type WindClass int
+
 const (
 	// Value Types
 	Temperatur = iota
@@ -30,6 +32,14 @@ const (
 	Coridor       = "Coridor"
 	Entry         = "Entry"
 	Terrace       = "Terrace"
+
+	// WindClasses
+	WindClassNone WindClass = iota
+	WindClassVeryLow
+	WindClassLow
+	WindClassMedium
+	WindClassHigh
+	WindClassVeryHigh
 )
 
 type KnxDevice struct {
@@ -42,19 +52,5 @@ type KnxDevice struct {
 }
 
 type ShutterDevice struct {
-	WindClass int
-}
-
-type WindClass struct{}
-
-func (WindClass) Low() int {
-	return 0
-}
-
-func (WindClass) Medium() int {
-	return 1
-}
-
-func (WindClass) High() int {
-	return 2
+	WindClass WindClass
 }

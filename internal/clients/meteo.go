@@ -2,6 +2,7 @@ package clients
 
 import (
 	"context"
+	"home_automation/internal/interfaces"
 	"home_automation/internal/logger"
 	"home_automation/internal/utils"
 	"time"
@@ -47,11 +48,11 @@ type MeteoResponse struct {
 }
 
 type MeteoClient struct {
-	iBricksClient *IBricksClient
+	iBricksClient interfaces.IBricksClientInterface
 	config        *utils.Config
 }
 
-func InitMeteoClient(iBricksClient *IBricksClient) *MeteoClient {
+func InitMeteoClient(iBricksClient interfaces.IBricksClientInterface) *MeteoClient {
 	client := &MeteoClient{
 		iBricksClient: iBricksClient,
 		config:        utils.GetConfig(),

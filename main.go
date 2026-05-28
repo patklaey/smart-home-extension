@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -9,9 +10,9 @@ import (
 	"strconv"
 
 	"home_automation/internal/clients"
-	"home_automation/internal/interfaces"
 	"home_automation/internal/logger"
 	"home_automation/internal/monitors"
+	"home_automation/internal/repositories"
 	"home_automation/internal/utils"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -36,12 +37,12 @@ func main() {
 	healthStatus = utils.InitHealthStatus(gauges)
 	iBricksClient := clients.InitIBricksClient(config)
 	pClient := clients.InitPromClient()
-	knxInterface := interfaces.InitAndConnectKnx(config)
+	knxInterface := repositories.InitAndConnectKnx(config)
 	meteoClient := clients.InitMeteoClient(iBricksClient)
-	shellyClient := clients.InitShelly(config, knxInterface.KnxClient, gauges)
-	weatherMonitor := monitors.InitWeatherMonitor(config, pClient, knxInterface.KnxClient, iBricksClient, meteoClient)
+	shellyClient := clients.InitShelly(config, knxInterface.KnxClient, gauges, knxInterface.KnxDevices)
+	weatherMonitor := monitors.InitWeatherMonitor(config, knxInterface.KnxDevices, pClient, knxInterface.KnxClient, iBricksClient, meteoClient)
 	astronomyClient := clients.InitAstronomyClient(iBricksClient, config)
-	interfaces.StartWebsocketServer(config, shellyClient)
+	repositories.StartWebsocketServer(config, shellyClient)
 
 	if knxInterface == nil {
 		logger.Error("Failed initializing knxClient, exiting")
@@ -52,8 +53,8 @@ func main() {
 
 	knxInterface.ListenToKNX(gauges, weatherMonitor, shellyClient)
 	knxInterface.MonitorKnxHealth(config.Knx.HealthCheckFrequencyMin, healthStatus)
-	shellyClient.StartFetchShellyData(gauges, config.Shelly.ShellyPullFrequencySeconds)
-	weatherMonitor.StartFetchingMaxWindspeed(config.Weather.Windspeed.CheckAverageFrequency)
+	shellyClient.StartFetchShellyData(context.Background(), gauges, config.Shelly.ShellyPullFrequencySeconds)
+	weatherMonitor.StartFetchingMaxWindspeed(context.Background(), config.Weather.Windspeed.CheckAverageFrequency)
 	meteoClient.StratFetchingWindStatus()
 	iBricksClient.StartSendingHeartbeat(config.IBricks.HeartbeatFrequency)
 	astronomyClient.StartUpdatingSunAzimuth(config.Ipgeolocation.FetchFrequency)

@@ -34,7 +34,6 @@ func InitIBricksClient(config *utils.Config) *IBricksClient {
 }
 
 func (iBricks *IBricksClient) SetMemo(memoName string, memoValue interface{}) error {
-
 	requestUrl := fmt.Sprintf("http://%s:%d/M2M/Core-HTTP/CallFunction.aspx", iBricks.url, iBricks.port)
 	reqBuilder := requests.URL(requestUrl).
 		Param("name", "SetMemoExt").
