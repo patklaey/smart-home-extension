@@ -17,13 +17,13 @@ import (
 	"github.com/vapourismo/knx-go/knx/util"
 )
 
-type KnxInterface struct {
+type KnxRepository struct {
 	KnxTunnel  knx.GroupTunnel
 	KnxClient  *clients.KnxClient
 	KnxDevices map[string]*models.KnxDevice
 }
 
-func InitAndConnectKnx(config *utils.Config) *KnxInterface {
+func InitAndConnectKnx(config *utils.Config) *KnxRepository {
 	devices := make(map[string]*models.KnxDevice)
 	for _, deviceConfig := range config.Knx.KnxDevices {
 		device, err := deviceConfig.ToKnxDevice()
@@ -46,19 +46,19 @@ func InitAndConnectKnx(config *utils.Config) *KnxInterface {
 		return nil
 	}
 
-	return &KnxInterface{KnxTunnel: tunnel, KnxClient: &clients.KnxClient{KnxTunnel: tunnel}, KnxDevices: devices}
+	return &KnxRepository{KnxTunnel: tunnel, KnxClient: &clients.KnxClient{KnxTunnel: tunnel}, KnxDevices: devices}
 }
 
-func (knxInterface *KnxInterface) ListenToKNX(gauges utils.PromExporterGauges, weatherMonitor interfaces.WeatherMonitorInterface, shellyClient interfaces.ShellyClientInterface) {
+func (knxRepo *KnxRepository) ListenToKNX(gauges utils.PromExporterGauges, weatherMonitor interfaces.WeatherMonitorInterface, shellyClient interfaces.ShellyClientInterface) {
 	go func() {
 		// Receive messages from the gateway. The inbound channel is closed with the connection.
-		for msg := range knxInterface.KnxTunnel.Inbound() {
-			knxInterface.processKNXMessage(msg, gauges, weatherMonitor, shellyClient)
+		for msg := range knxRepo.KnxTunnel.Inbound() {
+			knxRepo.processKNXMessage(msg, gauges, weatherMonitor, shellyClient)
 		}
 	}()
 }
 
-func (knxInterface *KnxInterface) processKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weatherMonitor interfaces.WeatherMonitorInterface, shellyClient interfaces.ShellyClientInterface) {
+func (knxRepo *KnxRepository) processKNXMessage(msg knx.GroupEvent, gauges utils.PromExporterGauges, weatherMonitor interfaces.WeatherMonitorInterface, shellyClient interfaces.ShellyClientInterface) {
 	// Map the destinations adressess to the corresponding types
 	var temp dpt.DPT_9001
 	var windspeed dpt.DPT_9005
@@ -67,7 +67,7 @@ func (knxInterface *KnxInterface) processKNXMessage(msg knx.GroupEvent, gauges u
 	var lightValue dpt.DPT_5001
 	dest := msg.Destination.String()
 	logger.Trace("%+v", msg)
-	if knxDevice, found := knxInterface.KnxDevices[dest]; found {
+	if knxDevice, found := knxRepo.KnxDevices[dest]; found {
 		switch knxDevice.ValueType {
 		case models.Temperatur:
 			err := temp.Unpack(msg.Data)
@@ -130,13 +130,13 @@ func (knxInterface *KnxInterface) processKNXMessage(msg knx.GroupEvent, gauges u
 	}
 }
 
-func (knxInterface *KnxInterface) MonitorKnxHealth(frequency int, healthStatus *utils.HealthStatus) {
+func (knxRepo *KnxRepository) MonitorKnxHealth(frequency int, healthStatus *utils.HealthStatus) {
 
 	go func() {
 		// regularly check if message can be sent to bus
 		ticker := time.NewTicker(time.Minute * time.Duration(frequency))
 		for ; true; <-ticker.C {
-			err := knxInterface.KnxClient.SendMessageToKnx("1/0/5", []byte{})
+			err := knxRepo.KnxClient.SendMessageToKnx("1/0/5", []byte{})
 			if err != nil {
 				logger.Error("Failed to send message: %v. Setting health status to 0", err)
 				healthStatus.SetKnxHealthStatus(0)

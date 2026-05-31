@@ -37,22 +37,22 @@ func main() {
 	healthStatus = utils.InitHealthStatus(gauges)
 	iBricksClient := clients.InitIBricksClient(config)
 	pClient := clients.InitPromClient()
-	knxInterface := repositories.InitAndConnectKnx(config)
+	knxRepository := repositories.InitAndConnectKnx(config)
 	meteoClient := clients.InitMeteoClient(iBricksClient)
-	shellyClient := clients.InitShelly(config, knxInterface.KnxClient, gauges, knxInterface.KnxDevices)
-	weatherMonitor := monitors.InitWeatherMonitor(config, knxInterface.KnxDevices, pClient, knxInterface.KnxClient, iBricksClient, meteoClient)
+	shellyClient := clients.InitShelly(config, knxRepository.KnxClient, gauges, knxRepository.KnxDevices)
+	weatherMonitor := monitors.InitWeatherMonitor(config, knxRepository.KnxDevices, pClient, knxRepository.KnxClient, iBricksClient, meteoClient)
 	astronomyClient := clients.InitAstronomyClient(iBricksClient, config)
 	repositories.StartWebsocketServer(config, shellyClient)
 
-	if knxInterface == nil {
+	if knxRepository == nil {
 		logger.Error("Failed initializing knxClient, exiting")
 		os.Exit(1)
 	}
 
-	defer knxInterface.KnxClient.KnxTunnel.Close()
+	defer knxRepository.KnxClient.KnxTunnel.Close()
 
-	knxInterface.ListenToKNX(gauges, weatherMonitor, shellyClient)
-	knxInterface.MonitorKnxHealth(config.Knx.HealthCheckFrequencyMin, healthStatus)
+	knxRepository.ListenToKNX(gauges, weatherMonitor, shellyClient)
+	knxRepository.MonitorKnxHealth(config.Knx.HealthCheckFrequencyMin, healthStatus)
 	shellyClient.StartFetchShellyData(context.Background(), gauges, config.Shelly.ShellyPullFrequencySeconds)
 	weatherMonitor.StartFetchingMaxWindspeed(context.Background(), config.Weather.Windspeed.CheckAverageFrequency)
 	meteoClient.StratFetchingWindStatus()

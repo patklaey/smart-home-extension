@@ -46,8 +46,8 @@ func packIndicator(t *testing.T, value bool) []byte {
 
 // newKnxInterface constructs a KnxInterface with the given device map,
 // without needing a real KNX tunnel.
-func newKnxInterface(devices map[string]*models.KnxDevice) *KnxInterface {
-	return &KnxInterface{KnxDevices: devices}
+func newKnxInterface(devices map[string]*models.KnxDevice) *KnxRepository {
+	return &KnxRepository{KnxDevices: devices}
 }
 
 // newRainGauge creates a real prometheus.Gauge backed by an isolated registry
