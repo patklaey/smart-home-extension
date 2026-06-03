@@ -14,11 +14,15 @@ import (
 )
 
 // TODO: Track shutter position as reported by KNX and store it here to be used as reference to retract when high windspeeds are detected
+var (
+	windClassToShutterPositionMap = map[models.WindClass]map[models.WindClass]float32{}
+)
 
 const (
 	// IBrick Memo Names
 	MemoAllAutoSunBlindsDown = "AllAutoSunBlindsDown"
 	MemoWindWarning          = "SunBlindsWindWarning"
+	shutterNamePrefix        = "SmartHomeExtensionShutterPosition"
 
 	windHysteresisFactor = 0.9
 )
@@ -34,16 +38,25 @@ type WeatherMonitor struct {
 }
 
 type WindStatus struct {
-	mutex                        sync.RWMutex
-	windShutterUpLowThreshold    float64
-	windShutterUpMedThreshold    float64
-	windShutterUpHighThreshold   float64
-	windShutterUpLowCheckActive  bool
-	windShutterUpMedCheckActive  bool
-	windShutterUpHighCheckActive bool
+	mutex                          sync.RWMutex
+	windShutterUpVeryLowThreshold  float64
+	windShutterUpLowThreshold      float64
+	windShutterUpMedThreshold      float64
+	windShutterUpHighThreshold     float64
+	windShutterUpVeryHighThreshold float64
+	currentWindClass               models.WindClass
 }
 
 func InitWeatherMonitor(config *utils.Config, knxDevices map[string]*models.KnxDevice, pClient interfaces.PromClientInterface, kClient interfaces.KnxClientInterface, iBricksClient interfaces.IBricksClientInterface, meteoClient interfaces.MeteoClientInterface) *WeatherMonitor {
+	// Create ShutterPositionMap for each wind class based on the config
+	windClassToShutterPositionMap = map[models.WindClass]map[models.WindClass]float32{
+		models.WindClassNone:     config.Weather.WindClassToShutterPositionMap.None.ToMap(),
+		models.WindClassVeryLow:  config.Weather.WindClassToShutterPositionMap.VeryLow.ToMap(),
+		models.WindClassLow:      config.Weather.WindClassToShutterPositionMap.Low.ToMap(),
+		models.WindClassMedium:   config.Weather.WindClassToShutterPositionMap.Medium.ToMap(),
+		models.WindClassHigh:     config.Weather.WindClassToShutterPositionMap.High.ToMap(),
+		models.WindClassVeryHigh: config.Weather.WindClassToShutterPositionMap.VeryHigh.ToMap(),
+	}
 	return &WeatherMonitor{
 		PromClient:           pClient,
 		KnxClient:            kClient,
@@ -52,12 +65,12 @@ func InitWeatherMonitor(config *utils.Config, knxDevices map[string]*models.KnxD
 		windResetGracePeriod: config.Weather.Windspeed.WindResetGracePeriod,
 		knxDevices:           knxDevices,
 		windStatus: WindStatus{
-			windShutterUpLowThreshold:    config.Weather.Windspeed.ShutterUpLowThreshold,
-			windShutterUpMedThreshold:    config.Weather.Windspeed.ShutterUpMedThreshold,
-			windShutterUpHighThreshold:   config.Weather.Windspeed.ShutterUpHighThreshold,
-			windShutterUpLowCheckActive:  true,
-			windShutterUpMedCheckActive:  true,
-			windShutterUpHighCheckActive: true,
+			windShutterUpVeryLowThreshold:  config.Weather.Windspeed.ShutterUpVeryLowThreshold,
+			windShutterUpLowThreshold:      config.Weather.Windspeed.ShutterUpLowThreshold,
+			windShutterUpMedThreshold:      config.Weather.Windspeed.ShutterUpMedThreshold,
+			windShutterUpHighThreshold:     config.Weather.Windspeed.ShutterUpHighThreshold,
+			windShutterUpVeryHighThreshold: config.Weather.Windspeed.ShutterUpVeryHighThreshold,
+			currentWindClass:               models.WindClassNone,
 		},
 	}
 }
@@ -67,48 +80,78 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 	windDirectionFactor := monitor.MeteoClient.GetWindDirectionFactor()
 	windspeed = windspeed * windDirectionFactor
 	logger.Trace("Current wind direction is %d and associated wind factor is %.2f resulting wind windspeed %.2f", windDirection, windDirectionFactor, windspeed)
+	// Get the wind class based on the current windspeed and thresholds
 	monitor.windStatus.mutex.Lock()
 	defer monitor.windStatus.mutex.Unlock()
+	windclass := monitor.getWindclassBySpeed(windspeed)
+	logger.Debug("Windclass based on windspeed (%.2f km/h) is %s", windspeed, windclass)
+	if getWindwarningByWindClass(windclass) > getWindwarningByWindClass(monitor.windStatus.currentWindClass) {
+		logger.Trace("Windspeed %.2f km/h corresponds to wind class %s, which is higher than current wind class %s, checking if shutter up action needs to be triggered", windspeed, windclass, monitor.windStatus.currentWindClass)
+		err := monitor.setWindClass(windclass)
+		if err != nil {
+			logger.Error("Failed to set wind class: %v trying to retract all shutters", err)
+			err := monitor.shutterUp(windclass)
+			if err != nil {
+				logger.Error("Failed to retract shutters for wind class %s after failed wind class setting: %v", windclass, err)
+			}
+			return
+		}
+		logger.Info("Windclass %s set on iBricks and shutters adjusted accordingly", windclass)
+	} else {
+		logger.Trace("Windspeed %.2f km/h corresponds to wind class %s, which is not higher than current wind class %s, no action needed", windspeed, windclass, monitor.windStatus.currentWindClass)
+	}
+}
+
+func (monitor *WeatherMonitor) setWindClass(windclass models.WindClass) error {
+	// Set the new wind class on iBricks memo and trigger shutter positions accordingly
+	monitor.setIBricksWindWarningMemo(windclass)
+	if err := monitor.setShutterPositionByWindClass(windclass); err != nil {
+		return err
+	}
+	monitor.windStatus.currentWindClass = windclass
+	logger.Info("Shutter positions and windclass set according to wind class %s", windclass)
+	return nil
+}
+
+func (monitor *WeatherMonitor) setShutterPositionByWindClass(windclass models.WindClass) error {
+	var errors []error
+	for knxAddress, knxDevice := range monitor.knxDevices {
+		if knxDevice.Type == models.Actor && knxDevice.ValueType == models.Shutter {
+			// Get the shutter position based on the shutters wind class and the current wind class
+			shutterPosition := windClassToShutterPositionMap[windclass][knxDevice.ShutterDevice.WindClass]
+			// Set the shutters position accordingly on iBricks
+			err := monitor.setIBricksShutterPosition(knxDevice.Name, shutterPosition)
+			if err != nil {
+				logger.Error("Failed to send shutter position command for shutter %s (%s): %s\n", knxDevice.Name, knxAddress, err)
+				errors = append(errors, err)
+			}
+		}
+	}
+
+	if err := monitor.IBrickClient.TriggerShutterPosition(); err != nil {
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		return fmt.Errorf("At least one failure during attempt to update some shutter positions: %v", errors)
+	}
+	return nil
+}
+
+func (monitor *WeatherMonitor) getWindclassBySpeed(windspeed float64) models.WindClass {
 	switch {
+	case windspeed >= monitor.windStatus.windShutterUpVeryHighThreshold:
+		return models.WindClassVeryHigh
 	case windspeed >= monitor.windStatus.windShutterUpHighThreshold:
-		if monitor.windStatus.windShutterUpHighCheckActive {
-			err := monitor.shutterUp(models.WindClassHigh)
-			if err == nil {
-				monitor.windStatus.windShutterUpHighCheckActive = false
-				logger.Info("Shutters for high wind retracted")
-				monitor.setIBricksWindWarningMemo(models.WindClassHigh)
-			} else {
-				logger.Warning("Some or all shutters could not be retracted (trigger high wind)")
-			}
-		} else {
-			logger.Trace("High shutter check deactivated, shutters already retracted")
-		}
+		return models.WindClassHigh
 	case windspeed >= monitor.windStatus.windShutterUpMedThreshold:
-		if monitor.windStatus.windShutterUpMedCheckActive {
-			err := monitor.shutterUp(models.WindClassMedium)
-			if err == nil {
-				monitor.windStatus.windShutterUpMedCheckActive = false
-				logger.Info("Shutters for medium wind retracted")
-				monitor.setIBricksWindWarningMemo(models.WindClassMedium)
-			} else {
-				logger.Warning("Some or all shutters could not be retracted (trigger medium wind)")
-			}
-		} else {
-			logger.Trace("Medium shutter check deactivated, shutters already retracted")
-		}
+		return models.WindClassMedium
 	case windspeed >= monitor.windStatus.windShutterUpLowThreshold:
-		if monitor.windStatus.windShutterUpLowCheckActive {
-			err := monitor.shutterUp(models.WindClassLow)
-			if err == nil {
-				monitor.windStatus.windShutterUpLowCheckActive = false
-				logger.Info("Shutters for low wind retracted")
-				monitor.setIBricksWindWarningMemo(models.WindClassLow)
-			} else {
-				logger.Warning("Some or all shutters could not be retracted (trigger low wind)")
-			}
-		} else {
-			logger.Trace("Low shutter check deactivated, shutters already retracted")
-		}
+		return models.WindClassLow
+	case windspeed >= monitor.windStatus.windShutterUpVeryLowThreshold:
+		return models.WindClassVeryLow
+	default:
+		return models.WindClassNone
 	}
 }
 
@@ -150,60 +193,77 @@ func (monitor *WeatherMonitor) checkReactivateShutterUp(maxWindspeed float64) {
 	logger.Trace("Current wind direction is %d and associated wind factor is %.2f resulting max windspeed %.2f", windDirection, monitor.MeteoClient.GetWindDirectionFactor(), maxWindspeed)
 	monitor.windStatus.mutex.Lock()
 	defer monitor.windStatus.mutex.Unlock()
+
+	var affectedThresholdValue float64
+	var affectedThresholdName string
+	var windClassToSet models.WindClass
+
 	switch {
+	case maxWindspeed <= monitor.windStatus.windShutterUpVeryLowThreshold*windHysteresisFactor:
+		affectedThresholdValue = monitor.windStatus.windShutterUpVeryLowThreshold
+		affectedThresholdName = "very low"
+		windClassToSet = models.WindClassNone
 	case maxWindspeed <= monitor.windStatus.windShutterUpLowThreshold*windHysteresisFactor:
-		logger.Trace("Windspeed %.2f lower than 90%% of low retraction threshold %.2f, reactivating all checks again", maxWindspeed, monitor.windStatus.windShutterUpLowThreshold*windHysteresisFactor)
-		if monitor.windStatus.windShutterUpLowCheckActive && monitor.windStatus.windShutterUpMedCheckActive && monitor.windStatus.windShutterUpHighCheckActive {
-			logger.Trace("All shutter up checks active, nothing to reactivate")
-			return
-		} else {
-			monitor.windStatus.windShutterUpLowCheckActive = true
-			monitor.windStatus.windShutterUpMedCheckActive = true
-			monitor.windStatus.windShutterUpHighCheckActive = true
-			logger.Debug("All shutter up checks reactivated")
-			monitor.setIBricksWindWarningMemo(models.WindClassNone)
-		}
+		affectedThresholdValue = monitor.windStatus.windShutterUpLowThreshold
+		affectedThresholdName = "low"
+		windClassToSet = models.WindClassVeryLow
 	case maxWindspeed <= monitor.windStatus.windShutterUpMedThreshold*windHysteresisFactor:
-		logger.Trace("Windspeed %.2f lower than 90%% of medium retraction threshold %.2f, reactivating high and medium checks again", maxWindspeed, monitor.windStatus.windShutterUpMedThreshold*windHysteresisFactor)
-		if monitor.windStatus.windShutterUpMedCheckActive && monitor.windStatus.windShutterUpHighCheckActive {
-			logger.Trace("Medium and high shutter up checks active, nothing to reactivate")
-			return
-		} else {
-			monitor.windStatus.windShutterUpMedCheckActive = true
-			monitor.windStatus.windShutterUpHighCheckActive = true
-			logger.Debug("High and medium shutter up checks reactivated")
-			monitor.setIBricksWindWarningMemo(models.WindClassLow)
-		}
+		affectedThresholdValue = monitor.windStatus.windShutterUpMedThreshold
+		affectedThresholdName = "medium"
+		windClassToSet = models.WindClassLow
 	case maxWindspeed <= monitor.windStatus.windShutterUpHighThreshold*windHysteresisFactor:
-		logger.Trace("Windspeed %.2f lower than 90%% of high retraction threshold %.2f, reactivating high checks again", maxWindspeed, monitor.windStatus.windShutterUpHighThreshold*windHysteresisFactor)
-		if monitor.windStatus.windShutterUpHighCheckActive {
-			logger.Trace("High shutter up checks active, nothing to reactivate")
-			return
+		affectedThresholdValue = monitor.windStatus.windShutterUpHighThreshold
+		affectedThresholdName = "high"
+		windClassToSet = models.WindClassMedium
+	case maxWindspeed <= monitor.windStatus.windShutterUpVeryHighThreshold*windHysteresisFactor:
+		affectedThresholdValue = monitor.windStatus.windShutterUpVeryHighThreshold
+		affectedThresholdName = "very high"
+		windClassToSet = models.WindClassHigh
+	default:
+		logger.Debug("Max windspeed %.2f is higher than very high threshold (%.2f), no action to trigger", maxWindspeed, monitor.windStatus.windShutterUpVeryHighThreshold*windHysteresisFactor)
+		return
+	}
+
+	if getWindwarningByWindClass(monitor.windStatus.currentWindClass) > getWindwarningByWindClass(windClassToSet) {
+		logger.Trace("Windspeed %.2f lower than 90%% of %s retraction threshold %.2f, setting windclass %s", maxWindspeed, affectedThresholdName, affectedThresholdValue*windHysteresisFactor, windClassToSet)
+		if err := monitor.setWindClass(windClassToSet); err != nil {
+			logger.Error("Failed to set (lower) wind class to %s: %s", windClassToSet, err)
+		}
+	} else {
+		if monitor.windStatus.currentWindClass == windClassToSet {
+			logger.Trace("Current wind class and windclass to set are the same (%s), no action to trigger", windClassToSet)
 		} else {
-			monitor.windStatus.windShutterUpHighCheckActive = true
-			logger.Debug("High shutter up checks reactivated")
-			monitor.setIBricksWindWarningMemo(models.WindClassMedium)
+			logger.Warning("Windclass to set (%s), is higher than current wind class (%s) - this should not happen!", windClassToSet, monitor.windStatus.currentWindClass)
 		}
 	}
 }
 
-func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windWarning models.WindClass) {
-	if windWarning < models.WindClassNone || windWarning > models.WindClassVeryHigh {
-		logger.Error("Wind warning must be between 0 and 5 (got %d). Not setting '%s' memo on iBricks", windWarning, MemoWindWarning)
-		return
-	}
+func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windclass models.WindClass) {
+	// TODO check for windclass
+	windWarning := getWindwarningByWindClass(windclass)
 	err := monitor.IBrickClient.SetMemo(MemoWindWarning, windWarning)
 	if err != nil {
-		logger.Warning("Shutter checks reactivated but failed to set memo '%s' to %d on iBricks", MemoWindWarning, windWarning)
+		logger.Warning("Failed to set memo '%s' to %d on iBricks", MemoWindWarning, windWarning)
 	} else {
 		logger.Debug("Memo '%s' on iBricks set successfully to '%d'", MemoWindWarning, windWarning)
 	}
 }
 
+func (monitor *WeatherMonitor) setIBricksShutterPosition(shutterName string, shutterPosition float32) error {
+	memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, shutterName)
+	err := monitor.IBrickClient.SetMemo(memoName, shutterPosition)
+	if err != nil {
+		logger.Warning("Shutter checks reactivated but failed to set memo '%s' to %.2f on iBricks", memoName, shutterPosition)
+	} else {
+		logger.Debug("Memo '%s' on iBricks set successfully to '%.2f'", memoName, shutterPosition)
+	}
+	return err
+}
+
 func (monitor *WeatherMonitor) shutterUp(windClass models.WindClass) error {
 	var lastError error
 	for knxAddress, knxDevice := range monitor.knxDevices {
-		if knxDevice.Type == models.Actor && knxDevice.ValueType == models.Shutter && knxDevice.ShutterDevice.WindClass <= windClass {
+		if knxDevice.Type == models.Actor && knxDevice.ValueType == models.Shutter && getWindwarningByWindClass(knxDevice.ShutterDevice.WindClass) <= getWindwarningByWindClass(windClass) {
 			err := monitor.KnxClient.SendMessageToKnx(knxAddress, dpt.DPT_1001(false).Pack())
 			if err != nil {
 				logger.Error("Failed to send shutterUp command for shutter %s (%s): %s\n", knxDevice.Name, knxAddress, err)
@@ -221,4 +281,23 @@ func (monitor *WeatherMonitor) shutterUp(windClass models.WindClass) error {
 	}
 
 	return lastError
+}
+
+func getWindwarningByWindClass(windclass models.WindClass) int {
+	switch windclass {
+	case models.WindClassNone:
+		return 0
+	case models.WindClassVeryLow:
+		return 1
+	case models.WindClassLow:
+		return 2
+	case models.WindClassMedium:
+		return 3
+	case models.WindClassHigh:
+		return 4
+	case models.WindClassVeryHigh:
+		return 5
+	default:
+		return 5
+	}
 }

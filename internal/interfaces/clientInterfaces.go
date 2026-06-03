@@ -10,6 +10,7 @@ import (
 
 type IBricksClientInterface interface {
 	SetMemo(memoName string, memoValue interface{}) error
+	TriggerShutterPosition() error
 	StartSendingHeartbeat(frequency int)
 }
 

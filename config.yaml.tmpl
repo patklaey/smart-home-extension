@@ -21,9 +21,36 @@ weather:
     checkDirectionFrequencyMin: 1
     checkAverageFrequencyMin: 5
     windResetGracePeriodMin: 30
-    shutterUpLowThreshold: 21
-    shutterUpMedThreshold: 27
-    shutterUpHighThreshold: 35
+    shutterUpVeryLowThreshold: 8
+    shutterUpLowThreshold: 12
+    shutterUpMedThreshold: 16
+    shutterUpHighThreshold: 20
+    shutterUpVeryHighThreshold: 35
+  windClassToShutterPositionMap:
+    none:
+      low: 100
+      medium: 100
+      high: 100
+    veryLow:
+      low: 90
+      medium: 100
+      high: 100
+    low:
+      low: 70
+      medium: 80
+      high: 100
+    medium:
+      low: 50
+      medium: 70
+      high: 100
+    high:
+      low: 0
+      medium: 50
+      high: 100
+    veryHigh:
+      low: 0
+      medium: 0
+      high: 0
 knx:
   interfaceIp: "1.2.3.4"
   interfacePort: 3671

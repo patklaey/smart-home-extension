@@ -43,9 +43,20 @@ func (iBricks *IBricksClient) SetMemo(memoName string, memoValue interface{}) er
 
 	if err != nil {
 		logger.Error("Failed to set memo %s to value %v: %s", memoName, memoValue, err)
-		return err
 	}
-	return nil
+	return err
+}
+
+func (iBricks *IBricksClient) TriggerShutterPosition() error {
+	requestUrl := fmt.Sprintf("http://%s:%d/M2M/Core-HTTP/CallFunction.aspx", iBricks.url, iBricks.port)
+	reqBuilder := requests.URL(requestUrl).
+		Param("name", "TriggerShutterPositionExt")
+	err := reqBuilder.Fetch(context.Background())
+
+	if err != nil {
+		logger.Error("Failed to trigger shutter position: %s", err)
+	}
+	return err
 }
 
 func (iBricks *IBricksClient) StartSendingHeartbeat(frequency int) {

@@ -1,6 +1,6 @@
 package models
 
-type WindClass int
+type WindClass string
 
 const (
 	// Value Types
@@ -34,12 +34,12 @@ const (
 	Terrace       = "Terrace"
 
 	// WindClasses
-	WindClassNone WindClass = iota
-	WindClassVeryLow
-	WindClassLow
-	WindClassMedium
-	WindClassHigh
-	WindClassVeryHigh
+	WindClassNone     WindClass = "none"
+	WindClassVeryLow  WindClass = "verylow"
+	WindClassLow      WindClass = "low"
+	WindClassMedium   WindClass = "medium"
+	WindClassHigh     WindClass = "high"
+	WindClassVeryHigh WindClass = "veryhigh"
 )
 
 type KnxDevice struct {
@@ -52,5 +52,6 @@ type KnxDevice struct {
 }
 
 type ShutterDevice struct {
-	WindClass WindClass
+	WindClass                WindClass
+	PositionCorrectionFactor float64
 }

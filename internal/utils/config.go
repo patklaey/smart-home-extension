@@ -45,8 +45,24 @@ type IBricksConfig struct {
 }
 
 type WeatherConfig struct {
-	Location  *WeatherLocationConfig `yaml:"location"`
-	Windspeed *WindspeedConfig       `yaml:"windspeed"`
+	Location                      *WeatherLocationConfig         `yaml:"location"`
+	Windspeed                     *WindspeedConfig               `yaml:"windspeed"`
+	WindClassToShutterPositionMap *WindClassToShutterPositionMap `yaml:"windClassToShutterPositionMap"`
+}
+
+type WindClassToShutterPositionMap struct {
+	None     *ShutterPositionMap `yaml:"none"`
+	VeryLow  *ShutterPositionMap `yaml:"veryLow"`
+	Low      *ShutterPositionMap `yaml:"low"`
+	Medium   *ShutterPositionMap `yaml:"medium"`
+	High     *ShutterPositionMap `yaml:"high"`
+	VeryHigh *ShutterPositionMap `yaml:"veryHigh"`
+}
+
+type ShutterPositionMap struct {
+	Low    int `yaml:"low"`
+	Medium int `yaml:"medium"`
+	High   int `yaml:"high"`
 }
 
 type WeatherLocationConfig struct {
@@ -56,12 +72,14 @@ type WeatherLocationConfig struct {
 }
 
 type WindspeedConfig struct {
-	ShutterUpLowThreshold   float64 `yaml:"shutterUpLowThreshold"`
-	ShutterUpMedThreshold   float64 `yaml:"shutterUpMedThreshold"`
-	ShutterUpHighThreshold  float64 `yaml:"shutterUpHighThreshold"`
-	CheckAverageFrequency   int     `yaml:"checkAverageFrequencyMin"`
-	WindResetGracePeriod    int     `yaml:"windResetGracePeriodMin"`
-	CheckDirectionFrequency int     `yaml:"checkDirectionFrequencyMin"`
+	ShutterUpVeryLowThreshold  float64 `yaml:"shutterUpVeryLowThreshold"`
+	ShutterUpLowThreshold      float64 `yaml:"shutterUpLowThreshold"`
+	ShutterUpMedThreshold      float64 `yaml:"shutterUpMedThreshold"`
+	ShutterUpHighThreshold     float64 `yaml:"shutterUpHighThreshold"`
+	ShutterUpVeryHighThreshold float64 `yaml:"shutterUpVeryHighThreshold"`
+	CheckAverageFrequency      int     `yaml:"checkAverageFrequencyMin"`
+	WindResetGracePeriod       int     `yaml:"windResetGracePeriodMin"`
+	CheckDirectionFrequency    int     `yaml:"checkDirectionFrequencyMin"`
 }
 
 type KnxConfig struct {
@@ -78,7 +96,8 @@ type KnxDeviceConfig struct {
 }
 
 type TypeConfig struct {
-	WindClass string `yaml:"windClass"`
+	WindClass                models.WindClass `yaml:"windClass"`
+	PositionCorrectionFactor float64          `yaml:"positionCorrectionFactor"`
 }
 
 type ShellyConfig struct {
@@ -174,20 +193,17 @@ func (deviceConfig *KnxDeviceConfig) ToKnxDevice() (*models.KnxDevice, error) {
 		device.ValueType = models.Indicator
 	case "shutter":
 		device.ValueType = models.Shutter
-		var windClass models.WindClass
-		switch strings.ToLower(deviceConfig.TypeConfig.WindClass) {
-		case "low":
-			windClass = models.WindClassLow
-		case "medium":
-			windClass = models.WindClassMedium
-		case "high":
-			windClass = models.WindClassHigh
-		default:
-			windClass = models.WindClassLow
-			fmt.Printf("Warning: wind class %s not defined, falling back to 'low' for shutter %s", deviceConfig.TypeConfig.WindClass, deviceConfig.Name)
+		windClass := deviceConfig.TypeConfig.WindClass
+		positionCorrectionFactor := deviceConfig.TypeConfig.PositionCorrectionFactor
+		if windClass == "" {
+			windClass = models.WindClassNone
+		}
+		if positionCorrectionFactor == 0 {
+			positionCorrectionFactor = 1
 		}
 		device.ShutterDevice = models.ShutterDevice{
-			WindClass: windClass,
+			WindClass:                windClass,
+			PositionCorrectionFactor: positionCorrectionFactor,
 		}
 	default:
 		return nil, fmt.Errorf("unknown KnxDevice valuetype '%s'", deviceConfig.ValueType)
@@ -231,5 +247,13 @@ func getRoomFromString(room string) string {
 		return models.Reduit
 	default:
 		return ""
+	}
+}
+
+func (spm *ShutterPositionMap) ToMap() map[models.WindClass]float32 {
+	return map[models.WindClass]float32{
+		models.WindClassLow:    float32(spm.Low),
+		models.WindClassMedium: float32(spm.Medium),
+		models.WindClassHigh:   float32(spm.High),
 	}
 }
