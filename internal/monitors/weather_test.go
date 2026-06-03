@@ -436,269 +436,283 @@ func TestCheckReactivateShutterUp_FailedTriggerDoesNotTiggerAnyAction(t *testing
 	assert.Equal(t, models.WindClassMedium, monitor.windStatus.currentWindClass)
 }
 
-// func TestSetIBricksWindWarningMemo_ValidValues(t *testing.T) {
-// 	tests := []struct {
-// 		name        string
-// 		windWarning models.WindClass
-// 		wantSuccess bool
-// 	}{
-// 		{
-// 			name:        "Wind warning none",
-// 			windWarning: models.WindClassNone,
-// 			wantSuccess: true,
-// 		},
-// 		{
-// 			name:        "Wind warning very low",
-// 			windWarning: models.WindClassVeryLow,
-// 			wantSuccess: true,
-// 		},
-// 		{
-// 			name:        "Wind warning low",
-// 			windWarning: models.WindClassLow,
-// 			wantSuccess: true,
-// 		},
-// 		{
-// 			name:        "Wind warning medium",
-// 			windWarning: models.WindClassMedium,
-// 			wantSuccess: true,
-// 		},
-// 		{
-// 			name:        "Wind warning high",
-// 			windWarning: models.WindClassHigh,
-// 			wantSuccess: true,
-// 		},
-// 		{
-// 			name:        "Wind warning very high",
-// 			windWarning: models.WindClassVeryHigh,
-// 			wantSuccess: true,
-// 		},
-// 	}
+func TestSetIBricksWindWarningMemo_ValidValues(t *testing.T) {
+	tests := []struct {
+		name        string
+		windWarning models.WindClass
+		wantSuccess bool
+	}{
+		{
+			name:        "Wind warning none",
+			windWarning: models.WindClassNone,
+			wantSuccess: true,
+		},
+		{
+			name:        "Wind warning very low",
+			windWarning: models.WindClassVeryLow,
+			wantSuccess: true,
+		},
+		{
+			name:        "Wind warning low",
+			windWarning: models.WindClassLow,
+			wantSuccess: true,
+		},
+		{
+			name:        "Wind warning medium",
+			windWarning: models.WindClassMedium,
+			wantSuccess: true,
+		},
+		{
+			name:        "Wind warning high",
+			windWarning: models.WindClassHigh,
+			wantSuccess: true,
+		},
+		{
+			name:        "Wind warning very high",
+			windWarning: models.WindClassVeryHigh,
+			wantSuccess: true,
+		},
+	}
 
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			config := createTestConfig()
-// 			monitor := createTestMonitor(config, t, nil)
-// 			iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
-// 			iBricksClient.EXPECT().SetMemo(MemoWindWarning, tt.windWarning).Return(nil).Times(1)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			config := createTestConfig()
+			monitor := createTestMonitor(config, t, nil)
+			iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
+			iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(tt.windWarning)).Return(nil).Times(1)
 
-// 			monitor.setIBricksWindWarningMemo(tt.windWarning)
-// 		})
-// 	}
-// }
+			monitor.setIBricksWindWarningMemo(tt.windWarning)
+		})
+	}
+}
 
-// func TestSetIBricksWindWarningMemo_InvalidValue(t *testing.T) {
-// 	config := createTestConfig()
-// 	monitor := createTestMonitor(config, t, nil)
-// 	iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
-// 	iBricksClient.EXPECT().SetMemo(gomock.Any(), gomock.Any()).Times(0)
+func TestSetIBricksWindWarningMemo_InvalidValue(t *testing.T) {
+	config := createTestConfig()
+	monitor := createTestMonitor(config, t, nil)
+	iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
+	iBricksClient.EXPECT().SetMemo(gomock.Any(), gomock.Any()).Times(0)
 
-// 	monitor.setIBricksWindWarningMemo(999)
-// }
+	monitor.setIBricksWindWarningMemo("invalid wind class")
+}
 
-// func TestSetIBricksWindWarningMemo_SetMemoError(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
+func TestSetIBricksWindWarningMemo_SetMemoError(t *testing.T) {
+	ctrl := gomock.NewController(t)
 
-// 	promClient := mock_interfaces.NewMockPromClientInterface(ctrl)
-// 	knxClient := mock_interfaces.NewMockKnxClientInterface(ctrl)
-// 	iBricksClient := mock_interfaces.NewMockIBricksClientInterface(ctrl)
-// 	meteoClient := mock_interfaces.NewMockMeteoClientInterface(ctrl)
+	promClient := mock_interfaces.NewMockPromClientInterface(ctrl)
+	knxClient := mock_interfaces.NewMockKnxClientInterface(ctrl)
+	iBricksClient := mock_interfaces.NewMockIBricksClientInterface(ctrl)
+	meteoClient := mock_interfaces.NewMockMeteoClientInterface(ctrl)
 
-// 	iBricksClient.EXPECT().SetMemo(MemoWindWarning, models.WindClassLow).Return(errors.New("connection error")).Times(1)
+	iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(models.WindClassLow)).Return(errors.New("connection error")).Times(1)
 
-// 	monitor := &WeatherMonitor{
-// 		PromClient:           promClient,
-// 		KnxClient:            knxClient,
-// 		IBrickClient:         iBricksClient,
-// 		MeteoClient:          meteoClient,
-// 		knxDevices:           map[string]*models.KnxDevice{},
-// 		windResetGracePeriod: 60,
-// 		windStatus: WindStatus{
-// 			windShutterUpLowThreshold:    10.0,
-// 			windShutterUpMedThreshold:    20.0,
-// 			windShutterUpHighThreshold:   30.0,
-// 			windShutterUpLowCheckActive:  true,
-// 			windShutterUpMedCheckActive:  true,
-// 			windShutterUpHighCheckActive: true,
-// 		},
-// 	}
+	monitor := &WeatherMonitor{
+		PromClient:           promClient,
+		KnxClient:            knxClient,
+		IBrickClient:         iBricksClient,
+		MeteoClient:          meteoClient,
+		knxDevices:           map[string]*models.KnxDevice{},
+		windResetGracePeriod: 60,
+		windStatus: WindStatus{
+			windShutterUpLowThreshold:  10.0,
+			windShutterUpMedThreshold:  20.0,
+			windShutterUpHighThreshold: 30.0,
+		},
+	}
 
-// 	// Should handle error gracefully (already tested in real code)
-// 	monitor.setIBricksWindWarningMemo(models.WindClassLow)
-// }
+	// Should handle error gracefully (already tested in real code)
+	monitor.setIBricksWindWarningMemo(models.WindClassLow)
+}
 
-// func TestShutterUp_NoShuttersMatch(t *testing.T) {
-// 	config := createTestConfig()
-// 	monitor := createTestMonitor(config, t, nil)
-// 	iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
-// 	iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
+func TestShutterUp_NoShuttersMatch(t *testing.T) {
+	config := createTestConfig()
+	monitor := createTestMonitor(config, t, nil)
+	iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
+	iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
 
-// 	err := monitor.shutterUp(models.WindClassLow)
+	err := monitor.shutterUp(models.WindClassLow)
 
-// 	if err != nil {
-// 		t.Errorf("Expected no error, got %v", err)
-// 	}
-// }
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+}
 
-// func TestShutterUp_WithMatchingShutters(t *testing.T) {
-// 	// Setup KnxDevices with matching shutters
-// 	knxDevices := make(map[string]*models.KnxDevice)
-// 	knxDevices["1/2/3"] = &models.KnxDevice{
-// 		Type:      models.Actor,
-// 		Name:      "Shutter1",
-// 		ValueType: models.Shutter,
-// 		ShutterDevice: models.ShutterDevice{
-// 			WindClass: models.WindClassLow,
-// 		},
-// 	}
-// 	knxDevices["1/2/4"] = &models.KnxDevice{
-// 		Type:      models.Actor,
-// 		Name:      "Shutter2",
-// 		ValueType: models.Shutter,
-// 		ShutterDevice: models.ShutterDevice{
-// 			WindClass: models.WindClassLow,
-// 		},
-// 	}
-// 	knxDevices["1/2/5"] = &models.KnxDevice{
-// 		Type:      models.Sensor,
-// 		Name:      "Temp",
-// 		ValueType: models.Temperatur,
-// 	}
-// 	config := createTestConfig()
-// 	monitor := createTestMonitor(config, t, knxDevices)
-// 	nKnxClient := monitor.KnxClient.(*mock_interfaces.MockKnxClientInterface)
-// 	nKnxClient.EXPECT().SendMessageToKnx("1/2/3", shutterUpCommand).Return(nil).Times(1)
-// 	nKnxClient.EXPECT().SendMessageToKnx("1/2/4", shutterUpCommand).Return(nil).Times(1)
-// 	nKnxClient.EXPECT().SendMessageToKnx("1/2/5", gomock.Any()).Return(nil).Times(0) // Should not be called for non-shutter
-// 	iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
-// 	iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
+func TestShutterUp_WithMatchingShutters(t *testing.T) {
+	// Setup KnxDevices with matching shutters
+	knxDevices := make(map[string]*models.KnxDevice)
+	knxDevices["1/2/3"] = &models.KnxDevice{
+		Type:      models.Actor,
+		Name:      "Shutter1",
+		ValueType: models.Shutter,
+		ShutterDevice: models.ShutterDevice{
+			WindClass: models.WindClassLow,
+		},
+	}
+	knxDevices["1/2/4"] = &models.KnxDevice{
+		Type:      models.Actor,
+		Name:      "Shutter2",
+		ValueType: models.Shutter,
+		ShutterDevice: models.ShutterDevice{
+			WindClass: models.WindClassLow,
+		},
+	}
+	knxDevices["1/2/5"] = &models.KnxDevice{
+		Type:      models.Sensor,
+		Name:      "Temp",
+		ValueType: models.Temperatur,
+	}
+	config := createTestConfig()
+	monitor := createTestMonitor(config, t, knxDevices)
+	nKnxClient := monitor.KnxClient.(*mock_interfaces.MockKnxClientInterface)
+	nKnxClient.EXPECT().SendMessageToKnx("1/2/3", shutterUpCommand).Return(nil).Times(1)
+	nKnxClient.EXPECT().SendMessageToKnx("1/2/4", shutterUpCommand).Return(nil).Times(1)
+	nKnxClient.EXPECT().SendMessageToKnx("1/2/5", gomock.Any()).Return(nil).Times(0) // Should not be called for non-shutter
+	iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
+	iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
 
-// 	err := monitor.shutterUp(models.WindClassLow)
+	err := monitor.shutterUp(models.WindClassLow)
 
-// 	if err != nil {
-// 		t.Errorf("Expected no error, got %v", err)
-// 	}
-// }
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
+}
 
-// func TestShutterUp_FilterByWindClass(t *testing.T) {
-// 	// Setup KnxDevices with different wind classes
-// 	knxDevices := make(map[string]*models.KnxDevice)
-// 	knxDevices["1/2/3"] = &models.KnxDevice{
-// 		Type:      models.Actor,
-// 		Name:      "LowShutter",
-// 		ValueType: models.Shutter,
-// 		ShutterDevice: models.ShutterDevice{
-// 			WindClass: models.WindClassLow,
-// 		},
-// 	}
-// 	knxDevices["1/2/4"] = &models.KnxDevice{
-// 		Type:      models.Actor,
-// 		Name:      "MedShutter",
-// 		ValueType: models.Shutter,
-// 		ShutterDevice: models.ShutterDevice{
-// 			WindClass: models.WindClassMedium,
-// 		},
-// 	}
-// 	knxDevices["1/2/5"] = &models.KnxDevice{
-// 		Type:      models.Actor,
-// 		Name:      "HighShutter",
-// 		ValueType: models.Shutter,
-// 		ShutterDevice: models.ShutterDevice{
-// 			WindClass: models.WindClassHigh,
-// 		},
-// 	}
+func TestShutterUp_FilterByWindClass(t *testing.T) {
+	// Setup KnxDevices with different wind classes
+	knxDevices := make(map[string]*models.KnxDevice)
+	knxDevices["1/2/3"] = &models.KnxDevice{
+		Type:      models.Actor,
+		Name:      "LowShutter",
+		ValueType: models.Shutter,
+		ShutterDevice: models.ShutterDevice{
+			WindClass: models.WindClassLow,
+		},
+	}
+	knxDevices["1/2/4"] = &models.KnxDevice{
+		Type:      models.Actor,
+		Name:      "MedShutter",
+		ValueType: models.Shutter,
+		ShutterDevice: models.ShutterDevice{
+			WindClass: models.WindClassMedium,
+		},
+	}
+	knxDevices["1/2/5"] = &models.KnxDevice{
+		Type:      models.Actor,
+		Name:      "HighShutter",
+		ValueType: models.Shutter,
+		ShutterDevice: models.ShutterDevice{
+			WindClass: models.WindClassHigh,
+		},
+	}
 
-// 	config := createTestConfig()
-// 	monitor := createTestMonitor(config, t, knxDevices)
-// 	nKnxClient := monitor.KnxClient.(*mock_interfaces.MockKnxClientInterface)
-// 	nKnxClient.EXPECT().SendMessageToKnx("1/2/3", shutterUpCommand).Return(nil).Times(3)
-// 	nKnxClient.EXPECT().SendMessageToKnx("1/2/4", shutterUpCommand).Return(nil).Times(2)
-// 	nKnxClient.EXPECT().SendMessageToKnx("1/2/5", shutterUpCommand).Return(nil).Times(1)
-// 	iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
-// 	iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(3)
+	config := createTestConfig()
+	monitor := createTestMonitor(config, t, knxDevices)
+	nKnxClient := monitor.KnxClient.(*mock_interfaces.MockKnxClientInterface)
+	nKnxClient.EXPECT().SendMessageToKnx("1/2/3", shutterUpCommand).Return(nil).Times(3)
+	nKnxClient.EXPECT().SendMessageToKnx("1/2/4", shutterUpCommand).Return(nil).Times(2)
+	nKnxClient.EXPECT().SendMessageToKnx("1/2/5", shutterUpCommand).Return(nil).Times(1)
+	iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
+	iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(3)
 
-// 	// Trigger for high wind
-// 	err := monitor.shutterUp(models.WindClassHigh)
+	// Trigger for high wind
+	err := monitor.shutterUp(models.WindClassHigh)
 
-// 	if err != nil {
-// 		t.Errorf("Expected no error, got %v", err)
-// 	}
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
 
-// 	// Trigger for medium wind
-// 	err = monitor.shutterUp(models.WindClassMedium)
+	// Trigger for medium wind
+	err = monitor.shutterUp(models.WindClassMedium)
 
-// 	if err != nil {
-// 		t.Errorf("Expected no error, got %v", err)
-// 	}
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
 
-// 	// Trigger for low wind
-// 	err = monitor.shutterUp(models.WindClassLow)
+	// Trigger for low wind
+	err = monitor.shutterUp(models.WindClassLow)
 
-// 	if err != nil {
-// 		t.Errorf("Expected no error, got %v", err)
-// 	}
+	if err != nil {
+		t.Errorf("Expected no error, got %v", err)
+	}
 
-// }
+}
 
-// func TestShutterUp_KnxClientError(t *testing.T) {
-// 	ctrl := gomock.NewController(t)
+func TestShutterUp_KnxClientError(t *testing.T) {
+	ctrl := gomock.NewController(t)
 
-// 	promClient := mock_interfaces.NewMockPromClientInterface(ctrl)
-// 	knxClient := mock_interfaces.NewMockKnxClientInterface(ctrl)
-// 	iBricksClient := mock_interfaces.NewMockIBricksClientInterface(ctrl)
-// 	meteoClient := mock_interfaces.NewMockMeteoClientInterface(ctrl)
+	promClient := mock_interfaces.NewMockPromClientInterface(ctrl)
+	knxClient := mock_interfaces.NewMockKnxClientInterface(ctrl)
+	iBricksClient := mock_interfaces.NewMockIBricksClientInterface(ctrl)
+	meteoClient := mock_interfaces.NewMockMeteoClientInterface(ctrl)
 
-// 	knxClient.EXPECT().SendMessageToKnx(gomock.Any(), gomock.Any()).Return(errors.New("connection error")).Times(1)
-// 	iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
+	knxClient.EXPECT().SendMessageToKnx(gomock.Any(), gomock.Any()).Return(errors.New("connection error")).Times(1)
+	iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
 
-// 	// Setup a shutter
-// 	knxDevices := make(map[string]*models.KnxDevice)
-// 	knxDevices["1/2/3"] = &models.KnxDevice{
-// 		Type:      models.Actor,
-// 		Name:      "Shutter1",
-// 		ValueType: models.Shutter,
-// 		ShutterDevice: models.ShutterDevice{
-// 			WindClass: models.WindClassLow,
-// 		},
-// 	}
+	// Setup a shutter
+	knxDevices := make(map[string]*models.KnxDevice)
+	knxDevices["1/2/3"] = &models.KnxDevice{
+		Type:      models.Actor,
+		Name:      "Shutter1",
+		ValueType: models.Shutter,
+		ShutterDevice: models.ShutterDevice{
+			WindClass: models.WindClassLow,
+		},
+	}
 
-// 	monitor := &WeatherMonitor{
-// 		PromClient:           promClient,
-// 		KnxClient:            knxClient,
-// 		IBrickClient:         iBricksClient,
-// 		MeteoClient:          meteoClient,
-// 		knxDevices:           knxDevices,
-// 		windResetGracePeriod: 60,
-// 		windStatus: WindStatus{
-// 			windShutterUpLowThreshold:    10.0,
-// 			windShutterUpMedThreshold:    20.0,
-// 			windShutterUpHighThreshold:   30.0,
-// 			windShutterUpLowCheckActive:  true,
-// 			windShutterUpMedCheckActive:  true,
-// 			windShutterUpHighCheckActive: true,
-// 		},
-// 	}
+	monitor := &WeatherMonitor{
+		PromClient:           promClient,
+		KnxClient:            knxClient,
+		IBrickClient:         iBricksClient,
+		MeteoClient:          meteoClient,
+		knxDevices:           knxDevices,
+		windResetGracePeriod: 60,
+		windStatus: WindStatus{
+			windShutterUpLowThreshold:  10.0,
+			windShutterUpMedThreshold:  20.0,
+			windShutterUpHighThreshold: 30.0,
+		},
+	}
 
-// 	err := monitor.shutterUp(models.WindClassLow)
+	err := monitor.shutterUp(models.WindClassLow)
 
-// 	if err == nil {
-// 		t.Error("Expected error from KnxClient, got nil")
-// 	}
-// }
+	if err == nil {
+		t.Error("Expected error from KnxClient, got nil")
+	}
+}
 
-// func TestWindStatus_InitialState(t *testing.T) {
-// 	config := createTestConfig()
-// 	monitor := createTestMonitor(config, t, nil)
+func TestWindStatus_InitialStateWithFailedInitialFetch(t *testing.T) {
+	config := createTestConfig()
+	monitor := createTestMonitor(config, t, nil)
 
-// 	if !monitor.windStatus.windShutterUpLowCheckActive {
-// 		t.Error("Expected windShutterUpLowCheckActive to be true initially")
-// 	}
-// 	if !monitor.windStatus.windShutterUpMedCheckActive {
-// 		t.Error("Expected windShutterUpMedCheckActive to be true initially")
-// 	}
-// 	if !monitor.windStatus.windShutterUpHighCheckActive {
-// 		t.Error("Expected windShutterUpHighCheckActive to be true initially")
-// 	}
-// }
+	// Initialisation in createTestMonitor fails initial fetch of wind class due to Prometheus query error, so it should be set to VeryHigh as initialized
+	assert.Equal(t, models.WindClassVeryHigh, monitor.windStatus.currentWindClass)
+}
+
+func TestWindStatus_InitialStateWithInitialFetch(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	config := createTestConfig()
+	devices := createTestShutters()
+
+	promClient := mock_interfaces.NewMockPromClientInterface(ctrl)
+	knxClient := mock_interfaces.NewMockKnxClientInterface(ctrl)
+	iBricksClient := mock_interfaces.NewMockIBricksClientInterface(ctrl)
+	meteoClient := mock_interfaces.NewMockMeteoClientInterface(ctrl)
+
+	meteoClient.EXPECT().GetWindDirection().Return(0).AnyTimes()
+	meteoClient.EXPECT().GetWindDirectionFactor().Return(1.0).AnyTimes()
+	promClient.EXPECT().Query(gomock.Any()).Return([]float64{20.0}, nil).Times(1) // return low wind on initial fetch to not trigger shutter position update during initialization
+	iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(models.WindClassLow)).Return(nil).Times(1)
+	memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
+	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.Low)).Return(nil).Times(1)
+	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
+	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.Medium)).Return(nil).Times(1)
+	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
+	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.High)).Return(nil).Times(1)
+	iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
+
+	monitor := InitWeatherMonitor(config, devices, promClient, knxClient, iBricksClient, meteoClient)
+	assert.Equal(t, models.WindClassLow, monitor.windStatus.currentWindClass)
+}
 
 // func TestCheckShutterUp_WithWindDirectionFactor(t *testing.T) {
 // 	ctrl := gomock.NewController(t)

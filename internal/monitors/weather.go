@@ -8,6 +8,7 @@ import (
 	"home_automation/internal/logger"
 	"home_automation/internal/models"
 	"home_automation/internal/utils"
+	"slices"
 	"sync"
 	"time"
 
@@ -236,7 +237,11 @@ func (monitor *WeatherMonitor) checkReactivateShutterUp(maxWindspeed float64) {
 }
 
 func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windclass models.WindClass) {
-	// TODO check for windclass
+	validWindClasses := []models.WindClass{models.WindClassNone, models.WindClassVeryLow, models.WindClassLow, models.WindClassMedium, models.WindClassHigh, models.WindClassVeryHigh}
+	if !slices.Contains(validWindClasses, windclass) {
+		logger.Warning("Invalid wind class %s provided to setIBricksWindWarningMemo, valid values are: %v", windclass, validWindClasses)
+		return
+	}
 	windWarning := getWindwarningByWindClass(windclass)
 	err := monitor.IBrickClient.SetMemo(MemoWindWarning, windWarning)
 	if err != nil {
