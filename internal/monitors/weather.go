@@ -95,7 +95,7 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 	windclass := monitor.getWindclassBySpeed(windspeed)
 	logger.Debug("Windclass based on windspeed (%.2f km/h) is %s", windspeed, windclass)
 	if getWindwarningByWindClass(windclass) > getWindwarningByWindClass(monitor.windStatus.currentWindClass) {
-		logger.Trace("Windspeed %.2f km/h corresponds to wind class %s, which is higher than current wind class %s, checking if shutter up action needs to be triggered", windspeed, windclass, monitor.windStatus.currentWindClass)
+		logger.Trace("Windspeed %.2f km/h corresponds to wind class %s, which is higher than current wind class %s, setting corresponding shutter positions", windspeed, windclass, monitor.windStatus.currentWindClass)
 		err := monitor.setWindClass(windclass)
 		if err != nil {
 			logger.Error("Failed to set wind class: %v trying to retract all shutters", err)
@@ -107,7 +107,7 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 		}
 		logger.Info("Windclass %s set on iBricks and shutters adjusted accordingly", windclass)
 	} else {
-		logger.Trace("Windspeed %.2f km/h corresponds to wind class %s, which is lower than current wind class %s, no action needed", windspeed, windclass, monitor.windStatus.currentWindClass)
+		logger.Trace("Windspeed %.2f km/h corresponds to wind class %s, which is lower or equal to current wind class %s, no action needed", windspeed, windclass, monitor.windStatus.currentWindClass)
 	}
 }
 
