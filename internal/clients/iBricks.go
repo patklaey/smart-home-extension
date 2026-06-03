@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"home_automation/internal/logger"
 	"home_automation/internal/utils"
+	"strings"
 	"time"
 
 	"github.com/carlmjohnson/requests"
@@ -21,6 +22,10 @@ import (
 // 	P2    interface{} `xml:"P2"`
 // }
 
+const (
+	ERROR_PREFIX = "[ERR]"
+)
+
 type IBricksClient struct {
 	url  string
 	port int
@@ -34,29 +39,42 @@ func InitIBricksClient(config *utils.Config) *IBricksClient {
 }
 
 func (iBricks *IBricksClient) SetMemo(memoName string, memoValue interface{}) error {
+	returnBody := ""
 	requestUrl := fmt.Sprintf("http://%s:%d/M2M/Core-HTTP/CallFunction.aspx", iBricks.url, iBricks.port)
 	reqBuilder := requests.URL(requestUrl).
 		Param("name", "SetMemoExt").
 		Param("p1", memoName).
-		Param("p2", fmt.Sprintf("%v", memoValue))
+		Param("p2", fmt.Sprintf("%v", memoValue)).
+		ToString(&returnBody)
 	err := reqBuilder.Fetch(context.Background())
 
 	if err != nil {
 		logger.Error("Failed to set memo %s to value %v: %s", memoName, memoValue, err)
+		return err
 	}
-	return err
+	if strings.HasPrefix(returnBody, ERROR_PREFIX) {
+		logger.Error("Failed to set memo %s to value %v: %s", memoName, memoValue, returnBody)
+		return fmt.Errorf("%s", returnBody)
+	}
+	return nil
 }
 
 func (iBricks *IBricksClient) TriggerShutterPosition() error {
+	returnBody := ""
 	requestUrl := fmt.Sprintf("http://%s:%d/M2M/Core-HTTP/CallFunction.aspx", iBricks.url, iBricks.port)
 	reqBuilder := requests.URL(requestUrl).
-		Param("name", "TriggerShutterPositionExt")
+		Param("name", "TriggerShutterPositionExt").
+		ToString(&returnBody)
 	err := reqBuilder.Fetch(context.Background())
 
 	if err != nil {
 		logger.Error("Failed to trigger shutter position: %s", err)
 	}
-	return err
+	if strings.HasPrefix(returnBody, ERROR_PREFIX) {
+		logger.Error("Failed to trigger shutter position:: %s", returnBody)
+		return fmt.Errorf("%s", returnBody)
+	}
+	return nil
 }
 
 func (iBricks *IBricksClient) StartSendingHeartbeat(frequency int) {
