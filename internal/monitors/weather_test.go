@@ -81,6 +81,7 @@ func TestInitWeatherMonitor(t *testing.T) {
 			knxClient := mock_interfaces.NewMockKnxClientInterface(ctrl)
 			iBricksClient := mock_interfaces.NewMockIBricksClientInterface(ctrl)
 			meteoClient := mock_interfaces.NewMockMeteoClientInterface(ctrl)
+			promClient.EXPECT().Query(gomock.Any()).Return(nil, errors.New("error")).Times(1)
 
 			got := InitWeatherMonitor(config, map[string]*models.KnxDevice{}, promClient, knxClient, iBricksClient, meteoClient)
 
@@ -108,8 +109,8 @@ func TestInitWeatherMonitor(t *testing.T) {
 			if got.windStatus.windShutterUpHighThreshold != 30.0 {
 				t.Errorf("InitWeatherMonitor() windShutterUpHighThreshold = %v, want 30.0", got.windStatus.windShutterUpHighThreshold)
 			}
-			if got.windStatus.currentWindClass != models.WindClassNone {
-				t.Errorf("InitWeatherMonitor() currentWindClass = %v, want %v", got.windStatus.currentWindClass, models.WindClassNone)
+			if got.windStatus.currentWindClass != models.WindClassVeryHigh {
+				t.Errorf("InitWeatherMonitor() currentWindClass = %v, want %v", got.windStatus.currentWindClass, models.WindClassVeryHigh)
 			}
 		})
 	}
@@ -143,6 +144,7 @@ func TestCheckShutterUp_VeryLowWind(t *testing.T) {
 			config := createTestConfig()
 			monitor := createTestMonitor(config, t, createTestShutters())
 			iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
+			monitor.windStatus.currentWindClass = models.WindClassNone // To test this, we need to start from wind class None
 			if tt.windspeed >= 10.0 {
 				//iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
 				iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(models.WindClassVeryLow)).Return(nil).Times(1)
@@ -185,7 +187,7 @@ func TestCheckShutterUp_LowWind(t *testing.T) {
 			config := createTestConfig()
 			monitor := createTestMonitor(config, t, createTestShutters())
 			iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
-			//iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
+			monitor.windStatus.currentWindClass = models.WindClassNone // To test this, we can start from wind class None
 			iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(tt.wantWindClass)).Return(nil).Times(1)
 			iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 			memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
@@ -225,7 +227,7 @@ func TestCheckShutterUp_MediumWind(t *testing.T) {
 			config := createTestConfig()
 			monitor := createTestMonitor(config, t, createTestShutters())
 			iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
-			//iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
+			monitor.windStatus.currentWindClass = models.WindClassNone // To test this, we can start from wind class None
 			iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(tt.wantWindClass)).Return(nil).Times(1)
 			iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 			memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
@@ -265,7 +267,7 @@ func TestCheckShutterUp_HighWind(t *testing.T) {
 			config := createTestConfig()
 			monitor := createTestMonitor(config, t, createTestShutters())
 			iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
-			//iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
+			monitor.windStatus.currentWindClass = models.WindClassNone // To test this, we can start from wind class None
 			iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(tt.wantWindClass)).Return(nil).Times(1)
 			iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 			memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
@@ -305,7 +307,7 @@ func TestCheckShutterUp_VeryHighWind(t *testing.T) {
 			config := createTestConfig()
 			monitor := createTestMonitor(config, t, createTestShutters())
 			iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
-			//iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
+			monitor.windStatus.currentWindClass = models.WindClassNone // To test this, we can start from wind class None
 			iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(tt.wantWindClass)).Return(nil).Times(1)
 			iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 			memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
@@ -768,6 +770,7 @@ func createTestMonitor(config *utils.Config, t *testing.T, devices map[string]*m
 
 	meteoClient.EXPECT().GetWindDirection().Return(0).AnyTimes()
 	meteoClient.EXPECT().GetWindDirectionFactor().Return(1.0).AnyTimes()
+	promClient.EXPECT().Query(gomock.Any()).Return(nil, errors.New("error")).Times(1) // return error to not trigger initial shutter position update
 
 	return InitWeatherMonitor(config, devices, promClient, knxClient, iBricksClient, meteoClient)
 }

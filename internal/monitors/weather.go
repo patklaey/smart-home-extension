@@ -2,6 +2,7 @@ package monitors
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"home_automation/internal/interfaces"
 	"home_automation/internal/logger"
@@ -57,7 +58,7 @@ func InitWeatherMonitor(config *utils.Config, knxDevices map[string]*models.KnxD
 		models.WindClassHigh:     config.Weather.WindClassToShutterPositionMap.High.ToMap(),
 		models.WindClassVeryHigh: config.Weather.WindClassToShutterPositionMap.VeryHigh.ToMap(),
 	}
-	return &WeatherMonitor{
+	weatherMonitor := &WeatherMonitor{
 		PromClient:           pClient,
 		KnxClient:            kClient,
 		IBrickClient:         iBricksClient,
@@ -70,9 +71,16 @@ func InitWeatherMonitor(config *utils.Config, knxDevices map[string]*models.KnxD
 			windShutterUpMedThreshold:      config.Weather.Windspeed.ShutterUpMedThreshold,
 			windShutterUpHighThreshold:     config.Weather.Windspeed.ShutterUpHighThreshold,
 			windShutterUpVeryHighThreshold: config.Weather.Windspeed.ShutterUpVeryHighThreshold,
-			currentWindClass:               models.WindClassNone,
+			currentWindClass:               models.WindClassVeryHigh, // Start with highest wind class to be sure that shutters are retracted at the start if windspeed is high
 		},
 	}
+	// Fetch max windspeed at the start to adjust the current wind class and shutter positions accordingly
+	if value, err := weatherMonitor.fetchMaxWindspeed(); err != nil {
+		logger.Error("Failed to fetch max windspeed at the start: %s", err)
+	} else {
+		weatherMonitor.checkReactivateShutterUp(value)
+	}
+	return weatherMonitor
 }
 
 func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
@@ -98,7 +106,7 @@ func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
 		}
 		logger.Info("Windclass %s set on iBricks and shutters adjusted accordingly", windclass)
 	} else {
-		logger.Trace("Windspeed %.2f km/h corresponds to wind class %s, which is not higher than current wind class %s, no action needed", windspeed, windclass, monitor.windStatus.currentWindClass)
+		logger.Trace("Windspeed %.2f km/h corresponds to wind class %s, which is lower than current wind class %s, no action needed", windspeed, windclass, monitor.windStatus.currentWindClass)
 	}
 }
 
@@ -162,23 +170,12 @@ func (monitor *WeatherMonitor) StartFetchingMaxWindspeed(ctx context.Context, fr
 		for {
 			select {
 			case <-ticker.C:
-				// Get max wind value for the last minutes
-				query := fmt.Sprintf("max_over_time(knx_weather_windspeed_kmh[%dm])", monitor.windResetGracePeriod)
-				values, err := monitor.PromClient.Query(query)
+				value, err := monitor.fetchMaxWindspeed()
 				if err != nil {
-					logger.Error("Failed to query prometheus, retrying in %d minute(s)", frequency)
+					logger.Error("Failed to fetch max windspeed: %s", err)
 					continue
 				}
-				switch len(values) {
-				case 0:
-					logger.Warning("Not received any result for max_over_time(knx_weather_windspeed_kmh[%dm]), retrying in %d minute(s)", monitor.windResetGracePeriod, frequency)
-				case 1:
-					logger.Debug("Max windspeed in the last %d minutes: %.2f", monitor.windResetGracePeriod, values[0])
-					monitor.checkReactivateShutterUp(values[0])
-				default:
-					logger.Warning("More than one result for max_over_time(knx_weather_windspeed_kmh[%dm]) received (expected just one) - using first one to continue: %v", monitor.windResetGracePeriod, values)
-					monitor.checkReactivateShutterUp(values[0])
-				}
+				monitor.checkReactivateShutterUp(value)
 			case <-ctx.Done():
 				logger.Info("Stopping max windspeed fetching routine")
 				return
@@ -281,6 +278,27 @@ func (monitor *WeatherMonitor) shutterUp(windClass models.WindClass) error {
 	}
 
 	return lastError
+}
+
+func (monitor *WeatherMonitor) fetchMaxWindspeed() (float64, error) {
+	// Get max wind value for the last minutes
+	query := fmt.Sprintf("max_over_time(knx_weather_windspeed_kmh[%dm])", monitor.windResetGracePeriod)
+	values, err := monitor.PromClient.Query(query)
+	if err != nil {
+		logger.Error("Failed to query prometheus, retrying next cycle: %s", err)
+		return 0, err
+	}
+	switch len(values) {
+	case 0:
+		logger.Warning("Not received any result for max_over_time(knx_weather_windspeed_kmh[%dm]), retrying next cycle", monitor.windResetGracePeriod)
+		return 0, errors.New("no value received for max windspeed query")
+	case 1:
+		logger.Debug("Max windspeed in the last %d minutes: %.2f", monitor.windResetGracePeriod, values[0])
+		return values[0], nil
+	default:
+		logger.Warning("More than one result for max_over_time(knx_weather_windspeed_kmh[%dm]) received (expected just one) - using first one to continue: %v", monitor.windResetGracePeriod, values)
+		return values[0], nil
+	}
 }
 
 func getWindwarningByWindClass(windclass models.WindClass) int {
