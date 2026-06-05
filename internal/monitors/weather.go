@@ -18,6 +18,7 @@ import (
 // TODO: Track shutter position as reported by KNX and store it here to be used as reference to retract when high windspeeds are detected
 var (
 	windClassToShutterPositionMap = map[models.WindClass]map[models.WindClass]float64{}
+	windClassToShutterPositionMap = map[models.WindClass]map[models.WindClass]float64{}
 )
 
 const (
@@ -51,6 +52,7 @@ type WindStatus struct {
 
 func InitWeatherMonitor(config *utils.Config, knxDevices map[string]*models.KnxDevice, pClient interfaces.PromClientInterface, kClient interfaces.KnxClientInterface, iBricksClient interfaces.IBricksClientInterface, meteoClient interfaces.MeteoClientInterface) *WeatherMonitor {
 	// Create ShutterPositionMap for each wind class based on the config
+	windClassToShutterPositionMap = map[models.WindClass]map[models.WindClass]float64{
 	windClassToShutterPositionMap = map[models.WindClass]map[models.WindClass]float64{
 		models.WindClassNone:     config.Weather.WindClassToShutterPositionMap.None.ToMap(),
 		models.WindClassVeryLow:  config.Weather.WindClassToShutterPositionMap.VeryLow.ToMap(),
@@ -257,6 +259,7 @@ func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windclass models.WindCl
 	}
 }
 
+func (monitor *WeatherMonitor) setIBricksShutterPosition(shutterName string, shutterPosition float64) error {
 func (monitor *WeatherMonitor) setIBricksShutterPosition(shutterName string, shutterPosition float64) error {
 	memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, shutterName)
 	err := monitor.IBrickClient.SetMemo(memoName, shutterPosition)
