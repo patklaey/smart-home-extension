@@ -34,16 +34,16 @@ func (m *MockWeatherMonitorInterface) EXPECT() *MockWeatherMonitorInterfaceMockR
 	return m.recorder
 }
 
-// CheckShutterUp mocks base method.
-func (m *MockWeatherMonitorInterface) CheckShutterUp(windspeed float64) {
+// CheckWindClassChange mocks base method.
+func (m *MockWeatherMonitorInterface) CheckWindClassChange(windspeed float64) {
 	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "CheckShutterUp", windspeed)
+	m.ctrl.Call(m, "CheckWindClassChange", windspeed)
 }
 
-// CheckShutterUp indicates an expected call of CheckShutterUp.
-func (mr *MockWeatherMonitorInterfaceMockRecorder) CheckShutterUp(windspeed interface{}) *gomock.Call {
+// CheckWindClassChange indicates an expected call of CheckWindClassChange.
+func (mr *MockWeatherMonitorInterfaceMockRecorder) CheckWindClassChange(windspeed interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckShutterUp", reflect.TypeOf((*MockWeatherMonitorInterface)(nil).CheckShutterUp), windspeed)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckWindClassChange", reflect.TypeOf((*MockWeatherMonitorInterface)(nil).CheckWindClassChange), windspeed)
 }
 
 // StartFetchingMaxWindspeed mocks base method.

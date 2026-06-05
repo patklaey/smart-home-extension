@@ -63,6 +63,20 @@ func (mr *MockIBricksClientInterfaceMockRecorder) StartSendingHeartbeat(frequenc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartSendingHeartbeat", reflect.TypeOf((*MockIBricksClientInterface)(nil).StartSendingHeartbeat), frequency)
 }
 
+// TriggerShutterPosition mocks base method.
+func (m *MockIBricksClientInterface) TriggerShutterPosition() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "TriggerShutterPosition")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// TriggerShutterPosition indicates an expected call of TriggerShutterPosition.
+func (mr *MockIBricksClientInterfaceMockRecorder) TriggerShutterPosition() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TriggerShutterPosition", reflect.TypeOf((*MockIBricksClientInterface)(nil).TriggerShutterPosition))
+}
+
 // MockMeteoClientInterface is a mock of MeteoClientInterface interface.
 type MockMeteoClientInterface struct {
 	ctrl     *gomock.Controller
