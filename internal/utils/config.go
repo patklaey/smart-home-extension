@@ -250,10 +250,10 @@ func getRoomFromString(room string) string {
 	}
 }
 
-func (spm *ShutterPositionMap) ToMap() map[models.WindClass]float32 {
-	return map[models.WindClass]float32{
-		models.WindClassLow:    float32(spm.Low),
-		models.WindClassMedium: float32(spm.Medium),
-		models.WindClassHigh:   float32(spm.High),
+func (spm *ShutterPositionMap) ToMap() map[models.WindClass]float64 {
+	return map[models.WindClass]float64{
+		models.WindClassLow:    float64(spm.Low),
+		models.WindClassMedium: float64(spm.Medium),
+		models.WindClassHigh:   float64(spm.High),
 	}
 }

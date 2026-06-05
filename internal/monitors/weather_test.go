@@ -150,11 +150,11 @@ func TestCheckWindClassChange_VeryLowWind(t *testing.T) {
 				iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(models.WindClassVeryLow)).Return(nil).Times(1)
 				iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 				memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
-				iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.VeryLow.Low)).Return(nil).Times(1)
+				iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.VeryLow.Low)).Return(nil).Times(1)
 				memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
-				iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.VeryLow.Medium)).Return(nil).Times(1)
+				iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.VeryLow.Medium)).Return(nil).Times(1)
 				memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
-				iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.VeryLow.High)).Return(nil).Times(1)
+				iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.VeryLow.High)).Return(nil).Times(1)
 			}
 
 			monitor.CheckWindClassChange(tt.windspeed)
@@ -191,11 +191,11 @@ func TestCheckWindClassChange_LowWind(t *testing.T) {
 			iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(tt.wantWindClass)).Return(nil).Times(1)
 			iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 			memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.Low)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.Low)).Return(nil).Times(1)
 			memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.Medium)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.Medium)).Return(nil).Times(1)
 			memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.High)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.High)).Return(nil).Times(1)
 
 			monitor.CheckWindClassChange(tt.windspeed)
 			assert.Equal(t, tt.wantWindClass, monitor.windStatus.currentWindClass)
@@ -231,11 +231,11 @@ func TestCheckWindClassChange_MediumWind(t *testing.T) {
 			iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(tt.wantWindClass)).Return(nil).Times(1)
 			iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 			memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Medium.Low)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Medium.Low)).Return(nil).Times(1)
 			memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Medium.Medium)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Medium.Medium)).Return(nil).Times(1)
 			memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Medium.High)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Medium.High)).Return(nil).Times(1)
 
 			monitor.CheckWindClassChange(tt.windspeed)
 			assert.Equal(t, tt.wantWindClass, monitor.windStatus.currentWindClass)
@@ -271,11 +271,11 @@ func TestCheckWindClassChange_HighWind(t *testing.T) {
 			iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(tt.wantWindClass)).Return(nil).Times(1)
 			iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 			memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.High.Low)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.High.Low)).Return(nil).Times(1)
 			memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.High.Medium)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.High.Medium)).Return(nil).Times(1)
 			memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.High.High)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.High.High)).Return(nil).Times(1)
 
 			monitor.CheckWindClassChange(tt.windspeed)
 			assert.Equal(t, tt.wantWindClass, monitor.windStatus.currentWindClass)
@@ -311,11 +311,11 @@ func TestCheckWindClassChange_VeryHighWind(t *testing.T) {
 			iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(tt.wantWindClass)).Return(nil).Times(1)
 			iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 			memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.VeryHigh.Low)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.VeryHigh.Low)).Return(nil).Times(1)
 			memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.VeryHigh.Medium)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.VeryHigh.Medium)).Return(nil).Times(1)
 			memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
-			iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.VeryHigh.High)).Return(nil).Times(1)
+			iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.VeryHigh.High)).Return(nil).Times(1)
 
 			monitor.CheckWindClassChange(tt.windspeed)
 
@@ -352,11 +352,11 @@ func TestCheckWindClassChange_FailedTiggerShutterPositionResultsInKNXShutterUpCo
 	iBricksClient.EXPECT().SetMemo(MemoAllAutoSunBlindsDown, 0).Return(nil).Times(1)
 	iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(models.WindClassMedium)).Return(nil).Times(1)
 	memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Medium.Low)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Medium.Low)).Return(nil).Times(1)
 	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Medium.Medium)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Medium.Medium)).Return(nil).Times(1)
 	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Medium.High)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Medium.High)).Return(nil).Times(1)
 	// Fail the trigger shutter position to test fallback to KNX command
 	iBricksClient.EXPECT().TriggerShutterPosition().Return(errors.New("connection error")).Times(1)
 	nKnxClient := monitor.KnxClient.(*mock_interfaces.MockKnxClientInterface)
@@ -380,11 +380,11 @@ func TestCheckWindClassReset_AllChecksReactivate(t *testing.T) {
 
 	iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(models.WindClassNone)).Return(nil).Times(1)
 	memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.None.Low)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.None.Low)).Return(nil).Times(1)
 	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.None.Medium)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.None.Medium)).Return(nil).Times(1)
 	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.None.High)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.None.High)).Return(nil).Times(1)
 	iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 
 	// Wind drops below 90% of very low threshold
@@ -422,11 +422,11 @@ func TestCheckWindClassReset_FailedTriggerDoesNotTiggerAnyAction(t *testing.T) {
 	iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
 	iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(models.WindClassLow)).Return(nil).Times(1)
 	memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.Low)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.Low)).Return(nil).Times(1)
 	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.Medium)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.Medium)).Return(nil).Times(1)
 	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.High)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.High)).Return(nil).Times(1)
 	iBricksClient.EXPECT().TriggerShutterPosition().Return(errors.New("an error occured")).Times(1)
 	// Set current wind class to medium
 	monitor.windStatus.currentWindClass = models.WindClassMedium
@@ -434,6 +434,27 @@ func TestCheckWindClassReset_FailedTriggerDoesNotTiggerAnyAction(t *testing.T) {
 	// Wind drops below 90% of medium threshold
 	monitor.checkWindClassReset(25)
 	assert.Equal(t, models.WindClassMedium, monitor.windStatus.currentWindClass)
+}
+
+func TestSetShutterPositionByWindClass_CorrectionFactorApplied(t *testing.T) {
+	const LOW_SHUTTER_CORRECTION_FACTOR float64 = 0.5
+	config := createTestConfig()
+	devices := createTestShutters()
+	devices["1/2/3"].ShutterDevice.PositionCorrectionFactor = LOW_SHUTTER_CORRECTION_FACTOR
+	devices["1/2/4"].ShutterDevice.PositionCorrectionFactor = 1
+	monitor := createTestMonitor(config, t, devices)
+	iBricksClient := monitor.IBrickClient.(*mock_interfaces.MockIBricksClientInterface)
+	// Expect the correction factor to be applied to the first shutter and not to the second
+	memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
+	iBricksClient.EXPECT().SetMemo(memoName, float64(float64(config.Weather.WindClassToShutterPositionMap.Low.Low)*LOW_SHUTTER_CORRECTION_FACTOR)).Return(nil).Times(1)
+	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.Medium)).Return(nil).Times(1)
+	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.High)).Return(nil).Times(1)
+	iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
+	err := monitor.setShutterPositionByWindClass(models.WindClassLow)
+	assert.NoError(t, err)
+
 }
 
 func TestSetIBricksWindWarningMemo_ValidValues(t *testing.T) {
@@ -703,11 +724,11 @@ func TestWindStatus_InitialStateWithInitialFetch(t *testing.T) {
 	promClient.EXPECT().Query(gomock.Any()).Return([]float64{20.0}, nil).Times(1) // return low wind on initial fetch to not trigger shutter position update during initialization
 	iBricksClient.EXPECT().SetMemo(MemoWindWarning, getWindwarningByWindClass(models.WindClassLow)).Return(nil).Times(1)
 	memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, "LowShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.Low)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.Low)).Return(nil).Times(1)
 	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "MedShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.Medium)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.Medium)).Return(nil).Times(1)
 	memoName = fmt.Sprintf("%s-%s", shutterNamePrefix, "HighShutter")
-	iBricksClient.EXPECT().SetMemo(memoName, float32(config.Weather.WindClassToShutterPositionMap.Low.High)).Return(nil).Times(1)
+	iBricksClient.EXPECT().SetMemo(memoName, float64(config.Weather.WindClassToShutterPositionMap.Low.High)).Return(nil).Times(1)
 	iBricksClient.EXPECT().TriggerShutterPosition().Return(nil).Times(1)
 
 	monitor := InitWeatherMonitor(config, devices, promClient, knxClient, iBricksClient, meteoClient)

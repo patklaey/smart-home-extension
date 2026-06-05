@@ -17,7 +17,7 @@ import (
 
 // TODO: Track shutter position as reported by KNX and store it here to be used as reference to retract when high windspeeds are detected
 var (
-	windClassToShutterPositionMap = map[models.WindClass]map[models.WindClass]float32{}
+	windClassToShutterPositionMap = map[models.WindClass]map[models.WindClass]float64{}
 )
 
 const (
@@ -51,7 +51,7 @@ type WindStatus struct {
 
 func InitWeatherMonitor(config *utils.Config, knxDevices map[string]*models.KnxDevice, pClient interfaces.PromClientInterface, kClient interfaces.KnxClientInterface, iBricksClient interfaces.IBricksClientInterface, meteoClient interfaces.MeteoClientInterface) *WeatherMonitor {
 	// Create ShutterPositionMap for each wind class based on the config
-	windClassToShutterPositionMap = map[models.WindClass]map[models.WindClass]float32{
+	windClassToShutterPositionMap = map[models.WindClass]map[models.WindClass]float64{
 		models.WindClassNone:     config.Weather.WindClassToShutterPositionMap.None.ToMap(),
 		models.WindClassVeryLow:  config.Weather.WindClassToShutterPositionMap.VeryLow.ToMap(),
 		models.WindClassLow:      config.Weather.WindClassToShutterPositionMap.Low.ToMap(),
@@ -128,6 +128,12 @@ func (monitor *WeatherMonitor) setShutterPositionByWindClass(windclass models.Wi
 		if knxDevice.Type == models.Actor && knxDevice.ValueType == models.Shutter {
 			// Get the shutter position based on the shutters wind class and the current wind class
 			shutterPosition := windClassToShutterPositionMap[windclass][knxDevice.ShutterDevice.WindClass]
+			logger.Trace("Shutter position for %s with wind class %s based on current wind class %s is %.2f", knxDevice.Name, knxDevice.ShutterDevice.WindClass, windclass, shutterPosition)
+			// Check if the device has a correction factor configured and apply it if so
+			if knxDevice.ShutterDevice.PositionCorrectionFactor != 0 {
+				shutterPosition = shutterPosition * knxDevice.ShutterDevice.PositionCorrectionFactor
+				logger.Trace("Applied correction factor %.2f to shutter %s resulting in new shutter position %.2f", knxDevice.ShutterDevice.PositionCorrectionFactor, knxDevice.Name, shutterPosition)
+			}
 			// Set the shutters position accordingly on iBricks
 			err := monitor.setIBricksShutterPosition(knxDevice.Name, shutterPosition)
 			if err != nil {
@@ -251,7 +257,7 @@ func (monitor *WeatherMonitor) setIBricksWindWarningMemo(windclass models.WindCl
 	}
 }
 
-func (monitor *WeatherMonitor) setIBricksShutterPosition(shutterName string, shutterPosition float32) error {
+func (monitor *WeatherMonitor) setIBricksShutterPosition(shutterName string, shutterPosition float64) error {
 	memoName := fmt.Sprintf("%s-%s", shutterNamePrefix, shutterName)
 	err := monitor.IBrickClient.SetMemo(memoName, shutterPosition)
 	if err != nil {
