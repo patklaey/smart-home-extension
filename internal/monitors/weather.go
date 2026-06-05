@@ -98,7 +98,7 @@ func (monitor *WeatherMonitor) CheckWindClassChange(windspeed float64) {
 		logger.Trace("Windspeed %.2f km/h corresponds to wind class %s, which is higher than current wind class %s, setting corresponding shutter positions", windspeed, windclass, monitor.windStatus.currentWindClass)
 		err := monitor.setWindClass(windclass)
 		if err != nil {
-			logger.Error("Failed to set wind class: %v trying to retract all shutters", err)
+			logger.Error("Failed to set wind class: %v trying to retract shutter for wind class %s", err, windclass)
 			err := monitor.shutterUp(windclass)
 			if err != nil {
 				logger.Error("Failed to retract shutters for wind class %s after failed wind class setting: %v", windclass, err)
@@ -130,9 +130,11 @@ func (monitor *WeatherMonitor) setShutterPositionByWindClass(windclass models.Wi
 			shutterPosition := windClassToShutterPositionMap[windclass][knxDevice.ShutterDevice.WindClass]
 			logger.Trace("Shutter position for %s with wind class %s based on current wind class %s is %.2f", knxDevice.Name, knxDevice.ShutterDevice.WindClass, windclass, shutterPosition)
 			// Check if the device has a correction factor configured and apply it if so
-			if knxDevice.ShutterDevice.PositionCorrectionFactor != 0 && knxDevice.ShutterDevice.PositionCorrectionFactor != 1 {
+			if knxDevice.ShutterDevice.PositionCorrectionFactor > 0 && knxDevice.ShutterDevice.PositionCorrectionFactor < 1 {
 				shutterPosition = shutterPosition * knxDevice.ShutterDevice.PositionCorrectionFactor
 				logger.Trace("Applied correction factor %.2f to shutter %s resulting in new shutter position %.2f", knxDevice.ShutterDevice.PositionCorrectionFactor, knxDevice.Name, shutterPosition)
+			} else if knxDevice.ShutterDevice.PositionCorrectionFactor > 1 {
+				logger.Warning("Correction factor %.2f for shutter %s bigger than 1, ignoring it and using original position %.2f", knxDevice.ShutterDevice.PositionCorrectionFactor, knxDevice.Name, shutterPosition)
 			}
 			// Set the shutters position accordingly on iBricks
 			err := monitor.setIBricksShutterPosition(knxDevice.Name, shutterPosition)
@@ -192,6 +194,12 @@ func (monitor *WeatherMonitor) StartFetchingMaxWindspeed(ctx context.Context, fr
 }
 
 func (monitor *WeatherMonitor) checkWindClassReset(maxWindspeed float64) {
+	// Protect against unrealistic values
+	if maxWindspeed < 0 {
+		logger.Warning("Fetched max windspeed %.2f is smaller than 0, ignoring it", maxWindspeed)
+		return
+	}
+
 	windDirection := monitor.MeteoClient.GetWindDirection()
 	maxWindspeed = maxWindspeed * monitor.MeteoClient.GetWindDirectionFactor()
 	logger.Trace("Current wind direction is %d and associated wind factor is %.2f resulting max windspeed %.2f", windDirection, monitor.MeteoClient.GetWindDirectionFactor(), maxWindspeed)
@@ -205,23 +213,23 @@ func (monitor *WeatherMonitor) checkWindClassReset(maxWindspeed float64) {
 	switch {
 	case maxWindspeed <= monitor.windStatus.windShutterUpVeryLowThreshold*windHysteresisFactor:
 		affectedThresholdValue = monitor.windStatus.windShutterUpVeryLowThreshold
-		affectedThresholdName = "very low"
+		affectedThresholdName = string(models.WindClassVeryLow)
 		windClassToSet = models.WindClassNone
 	case maxWindspeed <= monitor.windStatus.windShutterUpLowThreshold*windHysteresisFactor:
 		affectedThresholdValue = monitor.windStatus.windShutterUpLowThreshold
-		affectedThresholdName = "low"
+		affectedThresholdName = string(models.WindClassLow)
 		windClassToSet = models.WindClassVeryLow
 	case maxWindspeed <= monitor.windStatus.windShutterUpMedThreshold*windHysteresisFactor:
 		affectedThresholdValue = monitor.windStatus.windShutterUpMedThreshold
-		affectedThresholdName = "medium"
+		affectedThresholdName = string(models.WindClassMedium)
 		windClassToSet = models.WindClassLow
 	case maxWindspeed <= monitor.windStatus.windShutterUpHighThreshold*windHysteresisFactor:
 		affectedThresholdValue = monitor.windStatus.windShutterUpHighThreshold
-		affectedThresholdName = "high"
+		affectedThresholdName = string(models.WindClassHigh)
 		windClassToSet = models.WindClassMedium
 	case maxWindspeed <= monitor.windStatus.windShutterUpVeryHighThreshold*windHysteresisFactor:
 		affectedThresholdValue = monitor.windStatus.windShutterUpVeryHighThreshold
-		affectedThresholdName = "very high"
+		affectedThresholdName = string(models.WindClassVeryHigh)
 		windClassToSet = models.WindClassHigh
 	default:
 		logger.Debug("Max windspeed %.2f is higher than very high threshold (%.2f), no action to trigger", maxWindspeed, monitor.windStatus.windShutterUpVeryHighThreshold*windHysteresisFactor)
@@ -233,12 +241,10 @@ func (monitor *WeatherMonitor) checkWindClassReset(maxWindspeed float64) {
 		if err := monitor.setWindClass(windClassToSet); err != nil {
 			logger.Error("Failed to set (lower) wind class to %s: %s", windClassToSet, err)
 		}
+	} else if monitor.windStatus.currentWindClass == windClassToSet {
+		logger.Trace("Current wind class and windclass to set are the same (%s), no action to trigger", windClassToSet)
 	} else {
-		if monitor.windStatus.currentWindClass == windClassToSet {
-			logger.Trace("Current wind class and windclass to set are the same (%s), no action to trigger", windClassToSet)
-		} else {
-			logger.Warning("Windclass to set (%s), is higher than current wind class (%s) - this should not happen!", windClassToSet, monitor.windStatus.currentWindClass)
-		}
+		logger.Warning("Windclass to set (%s), is higher than current wind class (%s) - this should not happen!", windClassToSet, monitor.windStatus.currentWindClass)
 	}
 }
 
@@ -327,6 +333,7 @@ func getWindwarningByWindClass(windclass models.WindClass) int {
 	case models.WindClassVeryHigh:
 		return 5
 	default:
+		logger.Warning("Invalid value '%s' for windclass, return max windwarning value (5)", windclass)
 		return 5
 	}
 }
