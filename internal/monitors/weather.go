@@ -79,12 +79,12 @@ func InitWeatherMonitor(config *utils.Config, knxDevices map[string]*models.KnxD
 	if value, err := weatherMonitor.fetchMaxWindspeed(); err != nil {
 		logger.Error("Failed to fetch max windspeed at the start: %s", err)
 	} else {
-		weatherMonitor.checkReactivateShutterUp(value)
+		weatherMonitor.checkWindClassReset(value)
 	}
 	return weatherMonitor
 }
 
-func (monitor *WeatherMonitor) CheckShutterUp(windspeed float64) {
+func (monitor *WeatherMonitor) CheckWindClassChange(windspeed float64) {
 	windDirection := monitor.MeteoClient.GetWindDirection()
 	windDirectionFactor := monitor.MeteoClient.GetWindDirectionFactor()
 	windspeed = windspeed * windDirectionFactor
@@ -176,7 +176,7 @@ func (monitor *WeatherMonitor) StartFetchingMaxWindspeed(ctx context.Context, fr
 					logger.Error("Failed to fetch max windspeed: %s", err)
 					continue
 				}
-				monitor.checkReactivateShutterUp(value)
+				monitor.checkWindClassReset(value)
 			case <-ctx.Done():
 				logger.Info("Stopping max windspeed fetching routine")
 				return
@@ -185,7 +185,7 @@ func (monitor *WeatherMonitor) StartFetchingMaxWindspeed(ctx context.Context, fr
 	}()
 }
 
-func (monitor *WeatherMonitor) checkReactivateShutterUp(maxWindspeed float64) {
+func (monitor *WeatherMonitor) checkWindClassReset(maxWindspeed float64) {
 	windDirection := monitor.MeteoClient.GetWindDirection()
 	maxWindspeed = maxWindspeed * monitor.MeteoClient.GetWindDirectionFactor()
 	logger.Trace("Current wind direction is %d and associated wind factor is %.2f resulting max windspeed %.2f", windDirection, monitor.MeteoClient.GetWindDirectionFactor(), maxWindspeed)

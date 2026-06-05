@@ -84,27 +84,27 @@ func gaugeValue(t *testing.T, g prometheus.Gauge) float64 {
 
 // --- Windspeed ---
 
-func TestProcessKNXMessage_Windspeed_CallsCheckShutterUp(t *testing.T) {
+func TestProcessKNXMessage_Windspeed_CallsCheckWindClassChange(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	const addr = "1/1/1"
 	const speed float64 = 42.0
 
 	wm := mock_interfaces.NewMockWeatherMonitorInterface(ctrl)
-	wm.EXPECT().CheckShutterUp(speed).Times(1)
+	wm.EXPECT().CheckWindClassChange(speed).Times(1)
 
 	newKnxInterface(map[string]*models.KnxDevice{
 		addr: {ValueType: models.Windspeed, Name: "wind", Room: "outside"},
 	}).processKNXMessage(makeEvent(t, addr, packWindspeed(t, speed)), utils.PromExporterGauges{WindspeedGauge: newWindspeedGauge(t)}, wm, nil)
 }
 
-func TestProcessKNXMessage_Windspeed_UnpackError_DoesNotCallCheckShutterUp(t *testing.T) {
+func TestProcessKNXMessage_Windspeed_UnpackError_DoesNotCallCheckWindClassChange(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	const addr = "1/1/1"
 
 	wm := mock_interfaces.NewMockWeatherMonitorInterface(ctrl)
-	wm.EXPECT().CheckShutterUp(gomock.Any()).Times(0)
+	wm.EXPECT().CheckWindClassChange(gomock.Any()).Times(0)
 
 	newKnxInterface(map[string]*models.KnxDevice{
 		addr: {ValueType: models.Windspeed, Name: "wind", Room: "outside"},
@@ -203,7 +203,7 @@ func TestProcessKNXMessage_UnknownDestination_NoMocksAreCalled(t *testing.T) {
 
 	wm := mock_interfaces.NewMockWeatherMonitorInterface(ctrl)
 	sc := mock_interfaces.NewMockShellyClientInterface(ctrl)
-	wm.EXPECT().CheckShutterUp(gomock.Any()).Times(0)
+	wm.EXPECT().CheckWindClassChange(gomock.Any()).Times(0)
 	sc.EXPECT().HandleKnxMessage(gomock.Any(), gomock.Any()).Times(0)
 
 	newKnxInterface(map[string]*models.KnxDevice{}).

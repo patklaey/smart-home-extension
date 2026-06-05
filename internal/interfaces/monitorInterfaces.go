@@ -9,9 +9,9 @@ import (
 //
 //go:generate mockgen -destination=../mocks/mock_weather_monitor.go -package=mocks home_automation/internal/interfaces WeatherMonitorInterface
 type WeatherMonitorInterface interface {
-	// CheckShutterUp evaluates the given windspeed and retracts shutters
+	// CheckWindClassChange evaluates the given windspeed and retracts shutters
 	// for the appropriate wind class if thresholds are exceeded.
-	CheckShutterUp(windspeed float64)
+	CheckWindClassChange(windspeed float64)
 
 	// StartFetchingMaxWindspeed starts a background goroutine that periodically
 	// queries Prometheus for the max windspeed and reactivates shutter checks

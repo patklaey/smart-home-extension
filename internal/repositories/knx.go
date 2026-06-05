@@ -81,7 +81,7 @@ func (knxRepo *KnxRepository) processKNXMessage(msg knx.GroupEvent, gauges utils
 			err := windspeed.Unpack(msg.Data)
 			if err == nil {
 				logger.Debug("Speed: %+v: %v", msg, windspeed)
-				weatherMonitor.CheckShutterUp(float64(windspeed))
+				weatherMonitor.CheckWindClassChange(float64(windspeed))
 				gauges.WindspeedGauge.Set(float64(windspeed))
 			} else {
 				logger.Error("Failed to unpack windspeed for %s: %v", msg.Destination, err)
