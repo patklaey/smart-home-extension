@@ -106,6 +106,17 @@ func (shellyClient *ShellyClient) HandleFullStatusMessageMessage(message *models
 		voltage = message.Parameters.Switch.Voltage
 		apower = message.Parameters.Switch.APower
 		current = message.Parameters.Switch.Current
+	case strings.HasPrefix(message.Source, "shellyemminig4"):
+		device = shellyClient.getShellyDeviceBySource(message.Source, *message.Parameters.Wifi.StaIP)
+		if device == nil {
+			logger.Warning("Device for source '%s' not found (not in config?), skipping.", message.Source)
+			return nil
+		}
+		logger.Trace("According to device source (%s) it's a shelly EM1 mini gen4 message", message.Source)
+		signal = message.Parameters.Wifi.RRSI
+		voltage = message.Parameters.EM1.Voltage
+		apower = message.Parameters.EM1.ActPower
+		current = message.Parameters.EM1.Current
 	default:
 		logger.Trace("Unknown message from source %s, ignoring message", message.Source)
 		return nil
@@ -206,6 +217,9 @@ func (shellyClient *ShellyClient) HandleWebSocketMessage(messageContent []byte) 
 			return err
 		}
 		logger.Trace("%s message successfully processed", models.ShellyNotifStatus)
+	case models.ShellyNotifEvent:
+		logger.Debug("NotifyEvent received from shelly device, currently not handling it and ignorning message")
+		return nil
 	default:
 		logger.Warning("Unexpected method from shelly websocket message received: '%s'", shellyMessage.Method)
 	}
@@ -224,6 +238,11 @@ func (shellyClient *ShellyClient) HandleStatusMessage(message *models.ShellyStat
 		voltage = message.Parameters.PM1.Voltage
 		apower = message.Parameters.PM1.Apower
 		current = message.Parameters.PM1.Current
+	}
+	if message.Parameters.EM1 != nil {
+		voltage = message.Parameters.EM1.Voltage
+		apower = message.Parameters.EM1.ActPower
+		current = message.Parameters.EM1.Current
 	}
 	if message.Parameters.Switch != nil {
 		voltage = message.Parameters.Switch.Voltage
